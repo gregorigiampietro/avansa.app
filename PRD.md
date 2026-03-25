@@ -424,22 +424,7 @@ avansa/
 
 ---
 
-## Variáveis de Ambiente
 
-```env
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=https://yunshbkjklygdyscazin.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1bnNoYmtqa2x5Z2R5c2NhemluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3MDQzMDYsImV4cCI6MjA4OTI4MDMwNn0.XdAzzc_wVoNItjPUq-AT4a_e4Fue7stHuBQpZgImDfM
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl1bnNoYmtqa2x5Z2R5c2NhemluIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzcwNDMwNiwiZXhwIjoyMDg5MjgwMzA2fQ.8Jf6sDvWSOPy7WoYRj0MQFrC9lrmiI4xtzaufqjmBDw
-
-# Mercado Livre
-ML_APP_ID=3227566478967371
-ML_CLIENT_SECRET=ErX8kDWbM91ugUcoLTjgLC8CW0HIeLDz
-ML_REDIRECT_URI=https://avansa.app/api/auth/mercadolivre/callback
-
-# App
-NEXT_PUBLIC_APP_URL=https://avansa.app
-CRON_SECRET=  # Para proteger endpoints de cron
 ```
 
 ---
