@@ -41,15 +41,6 @@ export function OrdersView({ initialOrders, accounts }: OrdersViewProps) {
   const [syncingAccountId, setSyncingAccountId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const updateFilter = useCallback(
-    (patch: Partial<OrderFilters>) => {
-      const next = { ...filters, ...patch };
-      setFilters(next);
-      fetchOrders(next);
-    },
-    [filters]
-  );
-
   const fetchOrders = useCallback(async (f: OrderFilters) => {
     setLoading(true);
     try {
@@ -70,6 +61,15 @@ export function OrdersView({ initialOrders, accounts }: OrdersViewProps) {
       setLoading(false);
     }
   }, []);
+
+  const updateFilter = useCallback(
+    (patch: Partial<OrderFilters>) => {
+      const next = { ...filters, ...patch };
+      setFilters(next);
+      fetchOrders(next);
+    },
+    [filters, fetchOrders]
+  );
 
   const handleSync = useCallback(
     async (accountId: string) => {

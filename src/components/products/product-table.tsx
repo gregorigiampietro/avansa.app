@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CostEditor, type CostData } from "./cost-editor";
@@ -188,11 +189,13 @@ export function ProductTable({
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       {product.thumbnail ? (
-                        <img
+                        <Image
                           src={product.thumbnail.replace("http://", "https://")}
                           alt=""
+                          width={40}
+                          height={40}
                           className="size-10 shrink-0 rounded-md bg-muted object-cover"
-                          loading="lazy"
+                          unoptimized
                         />
                       ) : (
                         <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted">

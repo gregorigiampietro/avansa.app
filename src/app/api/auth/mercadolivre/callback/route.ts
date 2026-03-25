@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { exchangeCodeForToken } from "@/lib/mercadolivre/oauth";
 import type { MlUserResponse } from "@/lib/mercadolivre/types";
+export const dynamic = "force-dynamic";
+
 const ML_API_BASE_URL = "https://api.mercadolibre.com";
 
 export async function GET(request: NextRequest) {

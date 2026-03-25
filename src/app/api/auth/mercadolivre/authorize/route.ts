@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generatePKCE, getAuthorizationUrl } from "@/lib/mercadolivre/oauth";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const supabase = await createClient();

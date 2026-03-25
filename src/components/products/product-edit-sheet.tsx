@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import Image from "next/image";
 import {
   Sheet,
   SheetContent,
@@ -153,10 +154,13 @@ export function ProductEditSheet({
         {/* Product info */}
         <div className="flex items-center gap-3 px-4">
           {product.thumbnail ? (
-            <img
+            <Image
               src={product.thumbnail.replace("http://", "https://")}
               alt=""
+              width={48}
+              height={48}
               className="size-12 shrink-0 rounded-md bg-muted object-cover"
+              unoptimized
             />
           ) : (
             <div className="flex size-12 shrink-0 items-center justify-center rounded-md bg-muted">
