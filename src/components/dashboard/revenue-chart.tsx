@@ -10,9 +10,10 @@ export interface ChartDataPoint {
 
 interface RevenueChartProps {
   data: ChartDataPoint[];
+  periodLabel?: string;
 }
 
-export function RevenueChart({ data }: RevenueChartProps) {
+export function RevenueChart({ data, periodLabel = "30d" }: RevenueChartProps) {
   if (data.length === 0) {
     return (
       <div className="flex h-full min-h-[320px] items-center justify-center rounded-lg border border-border bg-card p-6">
@@ -30,7 +31,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <h3 className="text-sm font-medium text-foreground">
-          Faturamento e Lucro — Ultimos 30 dias
+          Faturamento e Lucro — Últimos {periodLabel}
         </h3>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">

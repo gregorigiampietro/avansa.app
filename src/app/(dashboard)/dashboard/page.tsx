@@ -4,11 +4,83 @@ import { Header } from "@/components/layout/header";
 import { StatsCards, type DashboardStats } from "@/components/dashboard/stats-cards";
 import { RevenueChart, type ChartDataPoint } from "@/components/dashboard/revenue-chart";
 import { RecentOrders } from "@/components/dashboard/recent-orders";
+import { DateRangePicker } from "@/components/dashboard/date-range-picker";
 import { createClient } from "@/lib/supabase/server";
 import type { Order } from "@/types/database";
 
-export default async function DashboardPage() {
+interface DashboardPageProps {
+  searchParams: Promise<{
+    days?: string;
+    from?: string;
+    to?: string;
+  }>;
+}
+
+function parseDateRange(params: { days?: string; from?: string; to?: string }) {
+  const now = new Date();
+  let from: Date;
+  let to: Date = now;
+  let label: string;
+
+  if (params.from && params.to) {
+    from = new Date(params.from + "T00:00:00");
+    to = new Date(params.to + "T23:59:59.999");
+    const diffDays = Math.round(
+      (to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    label = `${diffDays}d`;
+  } else {
+    const days = parseInt(params.days ?? "30", 10) || 30;
+    from = new Date();
+    from.setDate(from.getDate() - days);
+    label = `${days}d`;
+  }
+
+  return { from, to, label };
+}
+
+function buildChartData(
+  orders: { total_amount: number | null; net_profit: number | null; date_created: string | null }[],
+  from: Date,
+  to: Date
+): ChartDataPoint[] {
+  const dailyMap = new Map<string, { revenue: number; profit: number }>();
+
+  for (const order of orders) {
+    if (!order.date_created) continue;
+    const date = new Date(order.date_created);
+    const key = `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+    const existing = dailyMap.get(key) ?? { revenue: 0, profit: 0 };
+    existing.revenue += order.total_amount ?? 0;
+    existing.profit += order.net_profit ?? 0;
+    dailyMap.set(key, existing);
+  }
+
+  const totalDays = Math.max(
+    1,
+    Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24))
+  );
+
+  const chartData: ChartDataPoint[] = [];
+  for (let i = totalDays - 1; i >= 0; i--) {
+    const d = new Date(to);
+    d.setDate(d.getDate() - i);
+    const key = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const entry = dailyMap.get(key);
+    chartData.push({
+      date: key,
+      revenue: entry?.revenue ?? 0,
+      profit: entry?.profit ?? 0,
+    });
+  }
+
+  return chartData;
+}
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const supabase = await createClient();
+  const params = await searchParams;
 
   const {
     data: { user },
@@ -27,16 +99,16 @@ export default async function DashboardPage() {
   const hasAccounts = accounts && accounts.length > 0;
   const accountIds = accounts?.map((a) => a.id) ?? [];
 
-  // Build 30-day date threshold (ISO string)
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
+  // Parse date range from searchParams
+  const { from, to, label } = parseDateRange(params);
+  const fromISO = from.toISOString();
+  const toISO = to.toISOString();
 
   // Default stats
   const stats: DashboardStats = {
     activeListings: 0,
-    sales30d: 0,
-    revenue30d: 0,
+    salesCount: 0,
+    revenue: 0,
     avgMargin: 0,
   };
 
@@ -45,7 +117,7 @@ export default async function DashboardPage() {
 
   if (hasAccounts) {
     // Run all queries in parallel
-    const [activeListingsRes, orders30dRes, marginRes, recentOrdersRes] =
+    const [activeListingsRes, ordersRes, marginRes, recentOrdersRes] =
       await Promise.all([
         // Count active products
         supabase
@@ -54,12 +126,13 @@ export default async function DashboardPage() {
           .in("ml_account_id", accountIds)
           .eq("status", "active"),
 
-        // Get orders from last 30 days
+        // Get orders in date range
         supabase
           .from("orders")
           .select("total_amount, net_profit, date_created")
           .in("ml_account_id", accountIds)
-          .gte("date_created", thirtyDaysAgoISO),
+          .gte("date_created", fromISO)
+          .lte("date_created", toISO),
 
         // Average margin from products
         supabase
@@ -80,10 +153,10 @@ export default async function DashboardPage() {
     // Active listings count
     stats.activeListings = activeListingsRes.count ?? 0;
 
-    // Sales count and revenue from last 30 days
-    const orders30d = orders30dRes.data ?? [];
-    stats.sales30d = orders30d.length;
-    stats.revenue30d = orders30d.reduce(
+    // Sales count and revenue for period
+    const ordersInRange = ordersRes.data ?? [];
+    stats.salesCount = ordersInRange.length;
+    stats.revenue = ordersInRange.reduce(
       (sum, o) => sum + (o.total_amount ?? 0),
       0
     );
@@ -101,33 +174,8 @@ export default async function DashboardPage() {
     // Recent orders
     recentOrders = recentOrdersRes.data ?? [];
 
-    // Build chart data: aggregate daily revenue/profit for last 30 days
-    const dailyMap = new Map<string, { revenue: number; profit: number }>();
-
-    for (const order of orders30d) {
-      if (!order.date_created) continue;
-      const date = new Date(order.date_created);
-      const key = `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}`;
-
-      const existing = dailyMap.get(key) ?? { revenue: 0, profit: 0 };
-      existing.revenue += order.total_amount ?? 0;
-      existing.profit += order.net_profit ?? 0;
-      dailyMap.set(key, existing);
-    }
-
-    // Generate all 30 days in order
-    chartData = [];
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const key = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const entry = dailyMap.get(key);
-      chartData.push({
-        date: key,
-        revenue: entry?.revenue ?? 0,
-        profit: entry?.profit ?? 0,
-      });
-    }
+    // Build chart data
+    chartData = buildChartData(ordersInRange, from, to);
   }
 
   return (
@@ -149,11 +197,12 @@ export default async function DashboardPage() {
           </div>
         ) : (
           <>
-            <StatsCards stats={stats} />
+            <DateRangePicker />
+            <StatsCards stats={stats} periodLabel={label} />
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
               <div className="lg:col-span-2">
-                <RevenueChart data={chartData} />
+                <RevenueChart data={chartData} periodLabel={label} />
               </div>
               <div className="lg:col-span-1">
                 <RecentOrders orders={recentOrders ?? []} />

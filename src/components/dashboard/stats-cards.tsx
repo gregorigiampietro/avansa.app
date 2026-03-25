@@ -3,16 +3,17 @@ import { formatCurrency, formatPercent } from "@/lib/utils/formatters";
 
 export interface DashboardStats {
   activeListings: number;
-  sales30d: number;
-  revenue30d: number;
+  salesCount: number;
+  revenue: number;
   avgMargin: number;
 }
 
 interface StatsCardsProps {
   stats: DashboardStats;
+  periodLabel: string;
 }
 
-export function StatsCards({ stats }: StatsCardsProps) {
+export function StatsCards({ stats, periodLabel }: StatsCardsProps) {
   const cards = [
     {
       label: "Anuncios Ativos",
@@ -21,14 +22,14 @@ export function StatsCards({ stats }: StatsCardsProps) {
       color: null,
     },
     {
-      label: "Vendas (30d)",
-      value: stats.sales30d.toLocaleString("pt-BR"),
+      label: `Vendas (${periodLabel})`,
+      value: stats.salesCount.toLocaleString("pt-BR"),
       icon: ShoppingCart,
       color: null,
     },
     {
-      label: "Faturamento (30d)",
-      value: formatCurrency(stats.revenue30d),
+      label: `Faturamento (${periodLabel})`,
+      value: formatCurrency(stats.revenue),
       icon: DollarSign,
       color: null,
     },
