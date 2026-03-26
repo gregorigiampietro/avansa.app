@@ -6,6 +6,7 @@ interface CostsBody {
   cost_price?: number;
   packaging_cost?: number;
   other_costs?: number;
+  tax_percent?: number;
 }
 
 export async function PUT(
@@ -31,18 +32,19 @@ export async function PUT(
 
     // Parse request body
     const body = (await request.json()) as CostsBody;
-    const { cost_price, packaging_cost, other_costs } = body;
+    const { cost_price, packaging_cost, other_costs, tax_percent } = body;
 
     // Validate at least one field is provided
     if (
       cost_price === undefined &&
       packaging_cost === undefined &&
-      other_costs === undefined
+      other_costs === undefined &&
+      tax_percent === undefined
     ) {
       return NextResponse.json(
         {
           error:
-            "Informe pelo menos um campo: cost_price, packaging_cost ou other_costs",
+            "Informe pelo menos um campo: cost_price, packaging_cost, other_costs ou tax_percent",
         },
         { status: 400 }
       );
@@ -52,7 +54,7 @@ export async function PUT(
     // Use RLS-enabled client to enforce ownership
     const { data: product, error: productError } = await supabase
       .from("products")
-      .select("id, ml_account_id, price, ml_fee, shipping_cost, cost_price, packaging_cost, other_costs")
+      .select("id, ml_account_id, price, ml_fee, shipping_cost, cost_price, packaging_cost, other_costs, tax_percent")
       .eq("id", productId)
       .single();
 
@@ -82,18 +84,21 @@ export async function PUT(
     const updatedCostPrice = cost_price ?? product.cost_price ?? 0;
     const updatedPackagingCost = packaging_cost ?? product.packaging_cost ?? 0;
     const updatedOtherCosts = other_costs ?? product.other_costs ?? 0;
+    const updatedTaxPercent = tax_percent ?? product.tax_percent ?? 0;
     const currentPrice = product.price ?? 0;
     const currentMlFee = product.ml_fee ?? 0;
     const currentShippingCost = product.shipping_cost ?? 0;
 
     // Recalculate margin
+    const taxAmount = currentPrice * (updatedTaxPercent / 100);
     const netMargin =
       currentPrice -
       updatedCostPrice -
       updatedPackagingCost -
       updatedOtherCosts -
       currentMlFee -
-      currentShippingCost;
+      currentShippingCost -
+      taxAmount;
 
     const marginPercent =
       currentPrice > 0
@@ -109,6 +114,7 @@ export async function PUT(
         cost_price: updatedCostPrice,
         packaging_cost: updatedPackagingCost,
         other_costs: updatedOtherCosts,
+        tax_percent: updatedTaxPercent,
         net_margin: parseFloat(netMargin.toFixed(2)),
         margin_percent: marginPercent,
         updated_at: new Date().toISOString(),

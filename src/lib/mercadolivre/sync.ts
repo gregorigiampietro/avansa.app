@@ -104,7 +104,7 @@ export async function syncProducts(
     const existingItemIds = items.map((item) => item.id);
     const { data: existingProducts } = await supabase
       .from("products")
-      .select("ml_item_id, cost_price, packaging_cost, other_costs")
+      .select("ml_item_id, cost_price, packaging_cost, other_costs, tax_percent")
       .eq("ml_account_id", accountId)
       .in("ml_item_id", existingItemIds);
 
@@ -124,6 +124,7 @@ export async function syncProducts(
       const costPrice = existing?.cost_price ?? 0;
       const packagingCost = existing?.packaging_cost ?? 0;
       const otherCosts = existing?.other_costs ?? 0;
+      const taxPercent = existing?.tax_percent ?? 0;
 
       const { net_margin, margin_percent } = calculateMargin({
         price: item.price,
@@ -132,6 +133,7 @@ export async function syncProducts(
         other_costs: otherCosts,
         ml_fee: mlFee,
         shipping_cost: shippingCost,
+        tax_percent: taxPercent,
       });
 
       return {

@@ -79,6 +79,7 @@ export interface Database {
           other_costs: number | null
           ml_fee: number | null
           shipping_cost: number | null
+          tax_percent: number | null
           net_margin: number | null
           margin_percent: number | null
           last_synced_at: string | null
@@ -106,6 +107,7 @@ export interface Database {
           other_costs?: number | null
           ml_fee?: number | null
           shipping_cost?: number | null
+          tax_percent?: number | null
           net_margin?: number | null
           margin_percent?: number | null
           last_synced_at?: string | null
@@ -133,6 +135,7 @@ export interface Database {
           other_costs?: number | null
           ml_fee?: number | null
           shipping_cost?: number | null
+          tax_percent?: number | null
           net_margin?: number | null
           margin_percent?: number | null
           last_synced_at?: string | null

@@ -20,6 +20,7 @@ export type CostData = {
   cost_price: number | null;
   packaging_cost: number | null;
   other_costs: number | null;
+  tax_percent: number | null;
 };
 
 interface CostEditorProps {
@@ -58,6 +59,9 @@ export function CostEditor({
   const [otherCosts, setOtherCosts] = useState(
     product.other_costs?.toString() ?? ""
   );
+  const [taxPercent, setTaxPercent] = useState(
+    product.tax_percent?.toString() ?? ""
+  );
   const [saving, setSaving] = useState(false);
 
   const margin = useMemo(() => {
@@ -67,12 +71,14 @@ export function CostEditor({
     const other = parseMoneyInput(otherCosts) ?? 0;
     const mlFee = product.ml_fee ?? 0;
     const shipping = product.shipping_cost ?? 0;
+    const tax = parseMoneyInput(taxPercent) ?? 0;
 
-    const netMargin = price - cost - packaging - other - mlFee - shipping;
+    const taxAmount = price * (tax / 100);
+    const netMargin = price - cost - packaging - other - mlFee - shipping - taxAmount;
     const marginPercent = price > 0 ? (netMargin / price) * 100 : 0;
 
     return { netMargin, marginPercent };
-  }, [costPrice, packagingCost, otherCosts, product.price, product.ml_fee, product.shipping_cost]);
+  }, [costPrice, packagingCost, otherCosts, taxPercent, product.price, product.ml_fee, product.shipping_cost]);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
@@ -81,6 +87,7 @@ export function CostEditor({
         cost_price: parseMoneyInput(costPrice),
         packaging_cost: parseMoneyInput(packagingCost),
         other_costs: parseMoneyInput(otherCosts),
+        tax_percent: parseMoneyInput(taxPercent),
       });
       onOpenChange(false);
     } catch {
@@ -164,6 +171,24 @@ export function CostEditor({
                   onChange={(e) => setOtherCosts(e.target.value)}
                   className="pl-9"
                 />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="tax-percent">Imposto (%)</Label>
+              <div className="relative">
+                <Input
+                  id="tax-percent"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={taxPercent}
+                  onChange={(e) => setTaxPercent(e.target.value)}
+                  className="pr-9"
+                />
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                  %
+                </span>
               </div>
             </div>
           </div>
