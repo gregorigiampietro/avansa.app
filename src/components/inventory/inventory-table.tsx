@@ -15,7 +15,6 @@ const CONDITION_LABELS: Record<string, string> = {
   expired: "Expirado",
   lost: "Perdido",
   in_transfer: "Em Trânsito",
-  reserved: "Reservado",
   not_apt_for_sale: "Não Apto p/ Venda",
 };
 
@@ -25,7 +24,6 @@ const CONDITION_COLORS: Record<string, string> = {
   expired: "bg-[#636366]/15 text-[#636366]",
   lost: "bg-[#BF5AF2]/15 text-[#BF5AF2]",
   in_transfer: "bg-[#64D2FF]/15 text-[#64D2FF]",
-  reserved: "bg-[#FFD60A]/15 text-[#FFD60A]",
   not_apt_for_sale: "bg-[#FF9F0A]/15 text-[#FF9F0A]",
 };
 
@@ -85,7 +83,6 @@ export function InventoryTable({ rows, activeCondition }: InventoryTableProps) {
     if (row.expired > 0) conditions.push("expired");
     if (row.lost > 0) conditions.push("lost");
     if (row.in_transfer > 0) conditions.push("in_transfer");
-    if (row.reserved > 0) conditions.push("reserved");
     if (row.not_apt_for_sale > 0) conditions.push("not_apt_for_sale");
     return conditions;
   }

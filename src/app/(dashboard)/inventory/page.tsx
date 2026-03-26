@@ -8,7 +8,6 @@ import { createClient } from "@/lib/supabase/server";
 
 const CONDITION_CONFIG = [
   { key: "available", label: "Disponível", color: "#CDFF00" },
-  { key: "reserved", label: "Reservado", color: "#FFD60A" },
   { key: "in_transfer", label: "Em Trânsito", color: "#64D2FF" },
   { key: "damaged", label: "Danificado", color: "#FF453A" },
   { key: "not_apt_for_sale", label: "Não Apto p/ Venda", color: "#FF9F0A" },
@@ -30,7 +29,6 @@ function computeStats(data: InventoryRow[]): InventoryStats {
       row.expired +
       row.lost +
       row.in_transfer +
-      row.reserved +
       row.not_apt_for_sale;
 
     if (row.available < 5) {

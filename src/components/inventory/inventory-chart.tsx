@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 export interface ChartSlice {
   condition: string;
   label: string;
@@ -13,11 +15,88 @@ interface InventoryChartProps {
   onSliceClick: (condition: string | null) => void;
 }
 
+const CONDITION_TOOLTIPS: Record<string, string> = {
+  available:
+    "Unidades prontas para venda. Estão no seu estoque ou no centro Full e podem ser compradas imediatamente.",
+  in_transfer:
+    "Unidades sendo movidas entre centros de distribuição do Mercado Livre. Ficam indisponíveis até chegarem ao destino.",
+  damaged:
+    "Unidades que sofreram dano físico dentro do centro de distribuição (manuseio, armazenamento ou acidente). Não podem ser vendidas.",
+  not_apt_for_sale:
+    "Unidades reprovadas por problema de qualidade, embalagem inadequada ou não conformidade. Precisam ser retiradas ou corrigidas.",
+  lost:
+    "Unidades extraviadas no centro de distribuição. O Mercado Livre pode indenizar dependendo do caso.",
+  expired:
+    "Unidades com validade vencida. Precisam ser retiradas do centro de distribuição.",
+};
+
 const RADIUS = 80;
 const STROKE_WIDTH = 32;
 const CENTER = RADIUS + STROKE_WIDTH / 2 + 4;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 const SVG_SIZE = CENTER * 2;
+
+function LegendWithTooltips({
+  slices,
+  activeCondition,
+  onSliceClick,
+}: {
+  slices: ChartSlice[];
+  activeCondition: string | null;
+  onSliceClick: (condition: string | null) => void;
+}) {
+  const [hoveredCondition, setHoveredCondition] = useState<string | null>(null);
+
+  return (
+    <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2">
+      {slices.map((slice) => {
+        const isActive = activeCondition === slice.condition;
+        const isDimmed = activeCondition !== null && !isActive;
+        const tooltip = CONDITION_TOOLTIPS[slice.condition];
+        const isHovered = hoveredCondition === slice.condition;
+
+        return (
+          <div key={slice.condition} className="relative">
+            <button
+              onClick={() =>
+                onSliceClick(isActive ? null : slice.condition)
+              }
+              onMouseEnter={() => setHoveredCondition(slice.condition)}
+              onMouseLeave={() => setHoveredCondition(null)}
+              className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left transition-all ${
+                isActive
+                  ? "bg-muted/50"
+                  : isDimmed
+                    ? "opacity-40"
+                    : "hover:bg-muted/30"
+              }`}
+            >
+              <span
+                className="inline-block size-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: slice.color }}
+              />
+              <span className="text-xs text-muted-foreground">
+                {slice.label}
+              </span>
+              <span className="ml-auto text-xs font-medium text-foreground">
+                {slice.quantity.toLocaleString("pt-BR")}
+              </span>
+            </button>
+
+            {/* Tooltip on hover */}
+            {isHovered && tooltip && (
+              <div className="absolute bottom-full left-0 right-0 z-20 mb-1 rounded-lg border border-border bg-popover p-2.5 shadow-lg">
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  {tooltip}
+                </p>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export function InventoryChart({
   data,
@@ -135,39 +214,11 @@ export function InventoryChart({
       </div>
 
       {/* Legend */}
-      <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2">
-        {slices.map((slice) => {
-          const isActive = activeCondition === slice.condition;
-          const isDimmed = activeCondition !== null && !isActive;
-
-          return (
-            <button
-              key={slice.condition}
-              onClick={() =>
-                onSliceClick(isActive ? null : slice.condition)
-              }
-              className={`flex items-center gap-2 rounded px-2 py-1 text-left transition-all ${
-                isActive
-                  ? "bg-muted/50"
-                  : isDimmed
-                    ? "opacity-40"
-                    : "hover:bg-muted/30"
-              }`}
-            >
-              <span
-                className="inline-block size-2.5 shrink-0 rounded-full"
-                style={{ backgroundColor: slice.color }}
-              />
-              <span className="text-xs text-muted-foreground">
-                {slice.label}
-              </span>
-              <span className="ml-auto text-xs font-medium text-foreground">
-                {slice.quantity.toLocaleString("pt-BR")}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      <LegendWithTooltips
+        slices={slices}
+        activeCondition={activeCondition}
+        onSliceClick={onSliceClick}
+      />
     </div>
   );
 }
