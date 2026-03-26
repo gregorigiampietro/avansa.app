@@ -230,7 +230,7 @@ export async function syncInventoryStatus(
       const { error: upsertError } = await supabase
         .from("inventory_status")
         .upsert(batch, {
-          onConflict: "product_id,warehouse_id",
+          onConflict: "product_id,ml_account_id",
           ignoreDuplicates: false,
         });
 
