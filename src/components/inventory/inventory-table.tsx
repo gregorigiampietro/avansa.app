@@ -32,12 +32,13 @@ function truncate(text: string | null, maxLen: number): string {
   return text.length > maxLen ? `${text.slice(0, maxLen)}...` : text;
 }
 
-function ConditionBadge({ condition }: { condition: string }) {
+function ConditionBadge({ condition, quantity }: { condition: string; quantity: number }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${CONDITION_COLORS[condition] ?? "bg-muted text-muted-foreground"}`}
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${CONDITION_COLORS[condition] ?? "bg-muted text-muted-foreground"}`}
     >
-      {CONDITION_LABELS[condition] ?? condition}
+      {quantity.toLocaleString("pt-BR")}
+      <span className="opacity-70">{CONDITION_LABELS[condition] ?? condition}</span>
     </span>
   );
 }
@@ -75,15 +76,15 @@ export function InventoryTable({ rows, activeCondition }: InventoryTableProps) {
       })
     : rows;
 
-  // Determine which non-available conditions each row has
-  function getConditions(row: InventoryRow): string[] {
-    const conditions: string[] = [];
-    if (row.available > 0) conditions.push("available");
-    if (row.damaged > 0) conditions.push("damaged");
-    if (row.expired > 0) conditions.push("expired");
-    if (row.lost > 0) conditions.push("lost");
-    if (row.in_transfer > 0) conditions.push("in_transfer");
-    if (row.not_apt_for_sale > 0) conditions.push("not_apt_for_sale");
+  // Get all conditions with their quantities
+  function getConditions(row: InventoryRow): { condition: string; quantity: number }[] {
+    const conditions: { condition: string; quantity: number }[] = [];
+    if (row.available > 0) conditions.push({ condition: "available", quantity: row.available });
+    if (row.damaged > 0) conditions.push({ condition: "damaged", quantity: row.damaged });
+    if (row.expired > 0) conditions.push({ condition: "expired", quantity: row.expired });
+    if (row.lost > 0) conditions.push({ condition: "lost", quantity: row.lost });
+    if (row.in_transfer > 0) conditions.push({ condition: "in_transfer", quantity: row.in_transfer });
+    if (row.not_apt_for_sale > 0) conditions.push({ condition: "not_apt_for_sale", quantity: row.not_apt_for_sale });
     return conditions;
   }
 
@@ -130,7 +131,7 @@ export function InventoryTable({ rows, activeCondition }: InventoryTableProps) {
           {filteredRows.map((row) => {
             const product = row.products;
             const conditions = getConditions(row);
-            const hasIssue = conditions.some((c) => c !== "available");
+            const hasIssue = conditions.some((c) => c.condition !== "available");
 
             return (
               <tr
@@ -183,8 +184,8 @@ export function InventoryTable({ rows, activeCondition }: InventoryTableProps) {
                 {/* Conditions */}
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-1">
-                    {conditions.map((condition) => (
-                      <ConditionBadge key={condition} condition={condition} />
+                    {conditions.map((c) => (
+                      <ConditionBadge key={c.condition} condition={c.condition} quantity={c.quantity} />
                     ))}
                   </div>
                 </td>
