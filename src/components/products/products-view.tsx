@@ -81,7 +81,7 @@ export function ProductsView({ initialProducts, accounts }: ProductsViewProps) {
         const { data } = await response.json();
         setProducts(data ?? []);
       }
-    } catch (err) {
+    } catch {
       toast.error("Erro ao recarregar produtos");
     }
   }, []);

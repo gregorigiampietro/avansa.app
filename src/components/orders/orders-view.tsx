@@ -56,7 +56,7 @@ export function OrdersView({ initialOrders, accounts }: OrdersViewProps) {
         const { data } = await response.json();
         setOrders(data ?? []);
       }
-    } catch (err) {
+    } catch {
       toast.error("Erro ao buscar pedidos");
     } finally {
       setLoading(false);
