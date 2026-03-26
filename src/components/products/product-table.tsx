@@ -114,7 +114,7 @@ export function ProductTable({
   return (
     <>
       <div className="overflow-x-auto rounded-lg border border-border bg-card">
-        <table className="w-full min-w-[960px] text-sm">
+        <table className="w-full min-w-[1100px] text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/50">
               {/* Checkbox header */}
@@ -138,6 +138,12 @@ export function ProductTable({
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Preço
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Taxa
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Frete
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Estoque
@@ -219,6 +225,16 @@ export function ProductTable({
                   {/* Price */}
                   <td className="px-4 py-3 text-right font-medium text-foreground">
                     {formatBRL(product.price)}
+                  </td>
+
+                  {/* ML Fee */}
+                  <td className="px-4 py-3 text-right text-muted-foreground">
+                    {formatBRL(product.ml_fee)}
+                  </td>
+
+                  {/* Shipping Cost */}
+                  <td className="px-4 py-3 text-right text-muted-foreground">
+                    {formatBRL(product.shipping_cost)}
                   </td>
 
                   {/* Stock */}
