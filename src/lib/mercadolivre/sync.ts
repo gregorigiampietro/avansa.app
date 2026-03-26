@@ -62,16 +62,13 @@ export async function syncProducts(
       const key = `${item.price}|${item.listing_type_id}|${item.category_id}`;
       if (!feeCache.has(key)) {
         try {
-          const prices = await getListingPrices(
+          const priceData = await getListingPrices(
             accountId,
             item.price,
             item.listing_type_id,
             item.category_id
           );
-          const match = prices.find(
-            (p) => p.listing_type_id === item.listing_type_id
-          );
-          feeCache.set(key, match?.sale_fee_amount ?? 0);
+          feeCache.set(key, priceData.sale_fee_amount ?? 0);
         } catch {
           feeCache.set(key, 0);
         }

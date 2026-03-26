@@ -318,14 +318,14 @@ export async function getListingPrices(
   );
 }
 
-/** Response shape for the listing_prices endpoint (array at top level) */
-type MlListingPriceResponse = Array<{
+/** Response shape for the listing_prices endpoint (single object when listing_type_id is specified) */
+type MlListingPriceResponse = {
   listing_type_id: string;
   listing_type_name: string;
   sale_fee_amount: number;
   currency_id: string;
   listing_exposure: string;
-}>;
+};
 
 /**
  * Fetch shipping options for an item to extract the seller's shipping cost.
