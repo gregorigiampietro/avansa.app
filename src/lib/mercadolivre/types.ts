@@ -93,6 +93,18 @@ export interface MlFulfillmentStockResponse {
   }>;
 }
 
+export interface MlShippingOptionsResponse {
+  options: Array<{
+    id: number;
+    name: string;
+    list_cost: number;
+    cost: number;
+    base_cost: number;
+    display: string;
+    shipping_method_type: string;
+  }>;
+}
+
 export interface MlApiError {
   message: string;
   error: string;

@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { refreshAccessToken } from "./oauth";
-import type { MlUserResponse, MlItem, MlItemsSearchResponse } from "./types";
+import type { MlUserResponse, MlItem, MlItemsSearchResponse, MlShippingOptionsResponse } from "./types";
 
 const ML_API_BASE = "https://api.mercadolibre.com";
 
@@ -326,3 +326,18 @@ type MlListingPriceResponse = Array<{
   currency_id: string;
   listing_exposure: string;
 }>;
+
+/**
+ * Fetch shipping options for an item to extract the seller's shipping cost.
+ * Uses a reference ZIP (SP centro) — the list_cost is fixed for the seller
+ * regardless of destination.
+ */
+export async function getShippingOptions(
+  accountId: string,
+  itemId: string
+): Promise<MlShippingOptionsResponse> {
+  return mlGet<MlShippingOptionsResponse>(
+    accountId,
+    `/items/${itemId}/shipping_options?zip_code=01310100`
+  );
+}
