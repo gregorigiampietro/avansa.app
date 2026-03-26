@@ -96,6 +96,7 @@ export function ProductsView({ initialProducts, accounts }: ProductsViewProps) {
 
       if (!response.ok) {
         const data = await response.json();
+        toast.error(data.error ?? "Erro ao salvar custos");
         throw new Error(data.error ?? "Erro ao salvar custos");
       }
 
@@ -104,6 +105,8 @@ export function ProductsView({ initialProducts, accounts }: ProductsViewProps) {
       setProducts((prev) =>
         prev.map((p) => (p.id === productId ? { ...p, ...updatedProduct } : p))
       );
+
+      toast.success("Custos salvos com sucesso");
     },
     []
   );

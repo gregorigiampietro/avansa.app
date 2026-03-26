@@ -95,7 +95,7 @@ export function CostEditor({
     } finally {
       setSaving(false);
     }
-  }, [costPrice, packagingCost, otherCosts, onSave, onOpenChange]);
+  }, [costPrice, packagingCost, otherCosts, taxPercent, onSave, onOpenChange]);
 
   const marginColor =
     margin.netMargin > 0
