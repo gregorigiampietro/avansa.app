@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Header } from "@/components/layout/header";
+// Inventory page — stock control with interactive chart and expandable details
 import { InventoryView, type InventoryRow } from "@/components/inventory/inventory-view";
 import type { InventoryStats } from "@/components/inventory/inventory-stats-cards";
 import type { ChartSlice } from "@/components/inventory/inventory-chart";
