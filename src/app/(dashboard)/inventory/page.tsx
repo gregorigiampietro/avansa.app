@@ -11,7 +11,7 @@ const CONDITION_CONFIG = [
   { key: "in_transfer", label: "Em Trânsito", color: "#64D2FF" },
   { key: "damaged", label: "Danificado", color: "#FF453A" },
   { key: "not_apt_for_sale", label: "Não Apto p/ Venda", color: "#FF9F0A" },
-  { key: "lost", label: "Perdido", color: "#BF5AF2" },
+  { key: "lost", label: "Extraviado", color: "#BF5AF2" },
   { key: "expired", label: "Expirado", color: "#636366" },
 ] as const;
 
@@ -82,7 +82,7 @@ export default async function InventoryPage() {
     const { data: inventory } = await supabase
       .from("inventory_status")
       .select(
-        "id, product_id, ml_account_id, ml_item_id, available, damaged, expired, lost, in_transfer, reserved, not_apt_for_sale, total_stock, products(id, ml_item_id, title, thumbnail, sku, status, price, permalink)"
+        "id, product_id, ml_account_id, ml_item_id, available, damaged, expired, lost, in_transfer, reserved, not_apt_for_sale, total_stock, condition_details, products(id, ml_item_id, title, thumbnail, sku, status, price, permalink)"
       )
       .in("ml_account_id", accountIds)
       .order("available", { ascending: true });

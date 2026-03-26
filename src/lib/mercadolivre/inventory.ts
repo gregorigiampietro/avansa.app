@@ -1,7 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mlGet } from "./api";
-import type { MlInventoryStatusResponse } from "./types";
-import type { Database } from "@/types/database";
+import type { MlFulfillmentStockResponse, MlInventoryStatusResponse } from "./types";
+import type { Database, Json } from "@/types/database";
 
 type InventoryInsert = Database["public"]["Tables"]["inventory_status"]["Insert"];
 
@@ -19,29 +19,101 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** Map from ML detailed status to our column names */
+const STATUS_COLUMN_MAP: Record<string, string> = {
+  damaged: "damaged",
+  not_supported: "not_apt_for_sale",
+  lost: "lost",
+  withdrawal: "not_apt_for_sale",
+  no_fiscal_coverage: "not_apt_for_sale",
+  internal_process: "not_apt_for_sale",
+  transfer: "in_transfer",
+};
+
 /**
- * Fetch inventory status from ML Fulfillment API for a single item.
- * Returns null if the item is not in fulfillment (404/403).
+ * Fetch detailed fulfillment stock with subconditions.
+ * Uses /inventories/{id}/stock/fulfillment?include_attributes=conditions
+ * Falls back to basic /inventory/status if the detailed endpoint fails.
  */
 async function fetchItemInventory(
   accountId: string,
-  itemId: string
-): Promise<MlInventoryStatusResponse | null> {
+  itemId: string,
+  inventoryId: string | null
+): Promise<{
+  available: number;
+  damaged: number;
+  expired: number;
+  lost: number;
+  in_transfer: number;
+  reserved: number;
+  not_apt_for_sale: number;
+  conditionDetails: Json;
+} | null> {
+  // Try detailed endpoint first if we have an inventory_id
+  if (inventoryId) {
+    try {
+      const data = await mlGet<MlFulfillmentStockResponse>(
+        accountId,
+        `/inventories/${inventoryId}/stock/fulfillment?include_attributes=conditions`
+      );
+
+      // Map detailed statuses to our columns
+      const columns = {
+        available: data.available_quantity,
+        damaged: 0,
+        expired: 0,
+        lost: 0,
+        in_transfer: 0,
+        reserved: 0,
+        not_apt_for_sale: 0,
+      };
+
+      for (const detail of data.not_available_detail) {
+        const col = STATUS_COLUMN_MAP[detail.status];
+        if (col && col in columns) {
+          columns[col as keyof typeof columns] += detail.quantity;
+        }
+      }
+
+      return {
+        ...columns,
+        conditionDetails: data.not_available_detail as unknown as Json,
+      };
+    } catch {
+      // Fall through to basic endpoint
+    }
+  }
+
+  // Fallback: basic inventory status
   try {
-    return await mlGet<MlInventoryStatusResponse>(
+    const data = await mlGet<MlInventoryStatusResponse>(
       accountId,
       `/inventory/status?item_id=${itemId}`
     );
+
+    const detail = data.result.not_available_detail;
+    const getQty = (status: string) =>
+      detail.find((d) => d.status === status)?.quantity ?? 0;
+
+    return {
+      available: data.result.available_quantity,
+      damaged: getQty("damaged"),
+      expired: getQty("expired"),
+      lost: getQty("lost"),
+      in_transfer: getQty("in_transfer"),
+      reserved: getQty("reserved"),
+      not_apt_for_sale: getQty("not_apt_for_sale"),
+      conditionDetails: detail as unknown as Json,
+    };
   } catch {
-    // Item not in fulfillment or endpoint not available
     return null;
   }
 }
 
 /**
  * Sync inventory status for all products in an ML account.
- * For items in fulfillment, fetches detailed stock breakdown.
- * For items not in fulfillment, uses available_quantity from products table.
+ * Tries detailed fulfillment endpoint first (with subconditions),
+ * falls back to basic endpoint, or uses available_quantity from products.
  */
 export async function syncInventoryStatus(
   accountId: string
@@ -70,7 +142,7 @@ export async function syncInventoryStatus(
   const syncLogId = syncLog.id;
 
   try {
-    // Fetch all products for this account
+    // Fetch all products for this account (including inventory_id if available)
     const { data: products, error: productsError } = await supabase
       .from("products")
       .select("id, ml_item_id, available_quantity")
@@ -102,7 +174,7 @@ export async function syncInventoryStatus(
 
       const results = await Promise.all(
         batch.map((product) =>
-          fetchItemInventory(accountId, product.ml_item_id)
+          fetchItemInventory(accountId, product.ml_item_id, null)
         )
       );
 
@@ -111,22 +183,18 @@ export async function syncInventoryStatus(
         const inventoryData = results[j];
 
         if (inventoryData) {
-          // Item is in fulfillment — use detailed breakdown
-          const detail = inventoryData.result.not_available_detail;
-          const getQty = (status: string) =>
-            detail.find((d) => d.status === status)?.quantity ?? 0;
-
           inventoryRows.push({
             product_id: product.id,
             ml_account_id: accountId,
             ml_item_id: product.ml_item_id,
-            available: inventoryData.result.available_quantity,
-            damaged: getQty("damaged"),
-            expired: getQty("expired"),
-            lost: getQty("lost"),
-            in_transfer: getQty("in_transfer"),
-            reserved: getQty("reserved"),
-            not_apt_for_sale: getQty("not_apt_for_sale"),
+            available: inventoryData.available,
+            damaged: inventoryData.damaged,
+            expired: inventoryData.expired,
+            lost: inventoryData.lost,
+            in_transfer: inventoryData.in_transfer,
+            reserved: inventoryData.reserved,
+            not_apt_for_sale: inventoryData.not_apt_for_sale,
+            condition_details: inventoryData.conditionDetails,
             last_synced_at: now,
           });
         } else {
@@ -142,6 +210,7 @@ export async function syncInventoryStatus(
             in_transfer: 0,
             reserved: 0,
             not_apt_for_sale: 0,
+            condition_details: [],
             last_synced_at: now,
           });
         }

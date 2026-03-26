@@ -26,6 +26,7 @@ const CONDITION_TOOLTIPS: Record<string, string> = {
     "Unidades reprovadas por problema de qualidade, embalagem inadequada ou não conformidade. Precisam ser retiradas ou corrigidas.",
   lost:
     "Unidades extraviadas no centro de distribuição. O Mercado Livre pode indenizar dependendo do caso.",
+
   expired:
     "Unidades com validade vencida. Precisam ser retiradas do centro de distribuição.",
 };

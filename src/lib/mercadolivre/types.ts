@@ -78,6 +78,21 @@ export interface MlInventoryStatusResponse {
   };
 }
 
+export interface MlFulfillmentStockResponse {
+  inventory_id: string;
+  total: number;
+  available_quantity: number;
+  not_available_quantity: number;
+  not_available_detail: Array<{
+    status: string;
+    quantity: number;
+    conditions?: Array<{
+      condition: string;
+      quantity: number;
+    }>;
+  }>;
+}
+
 export interface MlApiError {
   message: string;
   error: string;

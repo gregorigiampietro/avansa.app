@@ -5,6 +5,15 @@ import { InventoryStatsCards, type InventoryStats } from "./inventory-stats-card
 import { InventoryChart, type ChartSlice } from "./inventory-chart";
 import { InventoryTable } from "./inventory-table";
 
+export interface ConditionDetailEntry {
+  status: string;
+  quantity: number;
+  conditions?: Array<{
+    condition: string;
+    quantity: number;
+  }>;
+}
+
 export interface InventoryRow {
   id: string;
   product_id: string;
@@ -18,6 +27,7 @@ export interface InventoryRow {
   reserved: number;
   not_apt_for_sale: number;
   total_stock: number;
+  condition_details: ConditionDetailEntry[] | null;
   products: {
     id: string;
     ml_item_id: string;

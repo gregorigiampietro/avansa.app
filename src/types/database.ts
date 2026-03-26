@@ -270,6 +270,7 @@ export interface Database {
           reserved: number
           not_apt_for_sale: number
           total_stock: number
+          condition_details: Json
           last_synced_at: string
           created_at: string
           updated_at: string
@@ -287,6 +288,7 @@ export interface Database {
           in_transfer?: number
           reserved?: number
           not_apt_for_sale?: number
+          condition_details?: Json
           last_synced_at?: string
           created_at?: string
           updated_at?: string
@@ -304,6 +306,7 @@ export interface Database {
           in_transfer?: number
           reserved?: number
           not_apt_for_sale?: number
+          condition_details?: Json
           last_synced_at?: string
           created_at?: string
           updated_at?: string
