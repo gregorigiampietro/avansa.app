@@ -46,11 +46,16 @@ function computeStats(data: InventoryRow[]): InventoryStats {
 
 function computeChartData(data: InventoryRow[]): ChartSlice[] {
   return CONDITION_CONFIG.map(({ key, label, color }) => {
-    const quantity = data.reduce(
-      (sum, row) => sum + (row[key as keyof InventoryRow] as number),
-      0
-    );
-    return { condition: key, label, quantity, color };
+    let quantity = 0;
+    let value = 0;
+
+    for (const row of data) {
+      const qty = row[key as keyof InventoryRow] as number;
+      quantity += qty;
+      value += qty * (row.products?.price ?? 0);
+    }
+
+    return { condition: key, label, quantity, color, value };
   });
 }
 

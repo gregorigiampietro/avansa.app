@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { formatCurrency } from "@/lib/utils/formatters";
 
 export interface ChartSlice {
   condition: string;
   label: string;
   quantity: number;
   color: string;
+  value: number;
 }
 
 interface InventoryChartProps {
@@ -220,6 +222,43 @@ export function InventoryChart({
         activeCondition={activeCondition}
         onSliceClick={onSliceClick}
       />
+
+      {/* Summary table */}
+      <div className="mt-5 border-t border-border/50 pt-4">
+        <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Resumo por Condição
+        </p>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-muted-foreground/70">
+              <th className="pb-1.5 text-left font-medium">Condição</th>
+              <th className="pb-1.5 text-right font-medium">Qtd</th>
+              <th className="pb-1.5 text-right font-medium">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {slices.map((slice) => (
+              <tr key={slice.condition} className="border-t border-border/30">
+                <td className="py-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className="inline-block size-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: slice.color }}
+                    />
+                    <span className="text-muted-foreground">{slice.label}</span>
+                  </div>
+                </td>
+                <td className="py-1.5 text-right font-medium text-foreground">
+                  {slice.quantity.toLocaleString("pt-BR")}
+                </td>
+                <td className="py-1.5 text-right font-medium text-foreground">
+                  {formatCurrency(slice.value)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
