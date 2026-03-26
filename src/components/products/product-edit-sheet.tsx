@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { toast } from "sonner";
 import Image from "next/image";
 import {
   Sheet,
@@ -118,8 +119,10 @@ export function ProductEditSheet({
           type: "error",
           message: `Parcialmente salvo. Erros: ${data.errors.join("; ")}`,
         });
+        toast.warning("Alterações salvas parcialmente");
       } else {
         setFeedback({ type: "success", message: "Alterações salvas" });
+        toast.success("Produto atualizado no Mercado Livre");
       }
 
       onSaved();
@@ -129,11 +132,10 @@ export function ProductEditSheet({
         onOpenChange(false);
       }, 800);
     } catch (err) {
-      setFeedback({
-        type: "error",
-        message:
-          err instanceof Error ? err.message : "Erro ao salvar alterações",
-      });
+      const message =
+        err instanceof Error ? err.message : "Erro ao salvar alterações";
+      setFeedback({ type: "error", message });
+      toast.error(message);
     } finally {
       setSaving(false);
     }

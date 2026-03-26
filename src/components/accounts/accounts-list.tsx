@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { AccountCard } from "@/components/accounts/account-card";
 import type { MlAccount } from "@/types/database";
 
@@ -23,9 +24,11 @@ export function AccountsList({ initialAccounts }: AccountsListProps) {
       }
 
       setAccounts((prev) => prev.filter((account) => account.id !== id));
+      toast.success("Conta desconectada com sucesso");
     } catch (error) {
-      // TODO: replace with toast notification
-      console.error("Erro ao desconectar conta:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Erro ao desconectar conta"
+      );
     }
   }
 

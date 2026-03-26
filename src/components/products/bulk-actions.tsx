@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -74,17 +75,27 @@ export function BulkActions({
             succeeded: 0,
             failed: selectedIds.length,
           });
+          toast.error("Erro ao processar ação em massa");
           return;
         }
 
         setResult(data);
         onComplete();
+
+        if (data.failed === 0) {
+          toast.success(`${data.succeeded} produtos atualizados`);
+        } else {
+          toast.warning(
+            `${data.succeeded} atualizados, ${data.failed} com erro`
+          );
+        }
       } catch {
         setResult({
           total: selectedIds.length,
           succeeded: 0,
           failed: selectedIds.length,
         });
+        toast.error("Erro ao processar ação em massa");
       } finally {
         setLoading(false);
         reset();

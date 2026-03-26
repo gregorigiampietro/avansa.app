@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { ProductFilters, type ProductFilters as Filters } from "./product-filters";
 import { ProductTable } from "./product-table";
 import { ProductEditSheet } from "./product-edit-sheet";
@@ -81,7 +82,7 @@ export function ProductsView({ initialProducts, accounts }: ProductsViewProps) {
         setProducts(data ?? []);
       }
     } catch (err) {
-      console.error("Erro ao recarregar produtos:", err);
+      toast.error("Erro ao recarregar produtos");
     }
   }, []);
 
@@ -123,8 +124,11 @@ export function ProductsView({ initialProducts, accounts }: ProductsViewProps) {
         }
 
         await refreshProducts();
+        toast.success("Produtos sincronizados com sucesso");
       } catch (err) {
-        console.error("Sync error:", err);
+        toast.error(
+          err instanceof Error ? err.message : "Erro ao sincronizar produtos"
+        );
       } finally {
         setSyncingAccountId(null);
       }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { OrderTable } from "./order-table";
 import type { Order, MlAccount } from "@/types/database";
 import { Button } from "@/components/ui/button";
@@ -56,7 +57,7 @@ export function OrdersView({ initialOrders, accounts }: OrdersViewProps) {
         setOrders(data ?? []);
       }
     } catch (err) {
-      console.error("Erro ao buscar pedidos:", err);
+      toast.error("Erro ao buscar pedidos");
     } finally {
       setLoading(false);
     }
@@ -86,10 +87,12 @@ export function OrdersView({ initialOrders, accounts }: OrdersViewProps) {
           throw new Error(data.error ?? "Erro ao sincronizar pedidos");
         }
 
-        // Reload orders after sync
         await fetchOrders(filters);
+        toast.success("Pedidos sincronizados com sucesso");
       } catch (err) {
-        console.error("Erro no sync de pedidos:", err);
+        toast.error(
+          err instanceof Error ? err.message : "Erro ao sincronizar pedidos"
+        );
       } finally {
         setSyncingAccountId(null);
       }
