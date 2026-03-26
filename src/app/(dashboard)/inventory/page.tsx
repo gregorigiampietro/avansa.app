@@ -20,6 +20,7 @@ function computeStats(data: InventoryRow[]): InventoryStats {
   let available = 0;
   let unavailable = 0;
   let atRiskCount = 0;
+  let totalValue = 0;
 
   for (const row of data) {
     totalStock += row.total_stock;
@@ -34,9 +35,12 @@ function computeStats(data: InventoryRow[]): InventoryStats {
     if (row.available < 5) {
       atRiskCount++;
     }
+
+    const price = row.products?.price ?? 0;
+    totalValue += row.available * price;
   }
 
-  return { totalStock, available, unavailable, atRiskCount };
+  return { totalStock, available, unavailable, atRiskCount, totalValue };
 }
 
 function computeChartData(data: InventoryRow[]): ChartSlice[] {
@@ -75,6 +79,7 @@ export default async function InventoryPage() {
     available: 0,
     unavailable: 0,
     atRiskCount: 0,
+    totalValue: 0,
   };
   let chartData: ChartSlice[] = [];
 

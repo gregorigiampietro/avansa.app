@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Package, CheckCircle, AlertTriangle, ShieldAlert, Info, X } from "lucide-react";
+import { Package, CheckCircle, AlertTriangle, ShieldAlert, DollarSign, Info, X } from "lucide-react";
+import { formatCurrency } from "@/lib/utils/formatters";
 
 export interface InventoryStats {
   totalStock: number;
   available: number;
   unavailable: number;
   atRiskCount: number;
+  totalValue: number;
 }
 
 interface InventoryStatsCardsProps {
@@ -50,10 +52,18 @@ export function InventoryStatsCards({ stats }: InventoryStatsCardsProps) {
       tooltip:
         "Quantidade de produtos com menos de 5 unidades disponíveis. Estes podem esgotar em breve e precisam de reposição.",
     },
+    {
+      label: "Valor Total em Estoque",
+      value: formatCurrency(stats.totalValue),
+      icon: DollarSign,
+      color: null,
+      tooltip:
+        "Valor monetário total do estoque disponível, calculado pela soma de (quantidade disponível × preço) de cada produto.",
+    },
   ] as const;
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
       {cards.map((card) => (
         <div
           key={card.label}
