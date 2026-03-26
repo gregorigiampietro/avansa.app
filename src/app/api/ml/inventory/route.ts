@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { syncProducts } from "@/lib/mercadolivre/sync";
 import { syncInventoryStatus } from "@/lib/mercadolivre/inventory";
 
-export async function POST(request: Request) {
+export async function GET() {
   try {
     const supabase = await createClient();
 
-    // Authenticate user
     const {
       data: { user },
       error: authError,
@@ -20,7 +18,58 @@ export async function POST(request: Request) {
       );
     }
 
-    // Parse request body
+    // Get user's ML accounts
+    const { data: accounts } = await supabase
+      .from("ml_accounts")
+      .select("id")
+      .eq("user_id", user.id);
+
+    if (!accounts || accounts.length === 0) {
+      return NextResponse.json({ data: [], summary: {} });
+    }
+
+    const accountIds = accounts.map((a) => a.id);
+
+    // Fetch inventory with product info
+    const { data: inventory, error: inventoryError } = await supabase
+      .from("inventory_status")
+      .select(
+        "*, products(id, ml_item_id, title, thumbnail, sku, status, price, permalink)"
+      )
+      .in("ml_account_id", accountIds)
+      .order("available", { ascending: true });
+
+    if (inventoryError) {
+      return NextResponse.json(
+        { error: `Erro ao buscar estoque: ${inventoryError.message}` },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ data: inventory ?? [] });
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Erro interno do servidor";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "Usuário não autenticado" },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { accountId } = body as { accountId?: string };
 
@@ -31,7 +80,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify the account belongs to the authenticated user
+    // Verify account belongs to user
     const { data: account, error: accountError } = await supabase
       .from("ml_accounts")
       .select("id, ml_user_id, status")
@@ -53,28 +102,21 @@ export async function POST(request: Request) {
       );
     }
 
-    // Run sync
-    const result = await syncProducts(accountId, account.ml_user_id);
+    const result = await syncInventoryStatus(accountId);
 
     if (result.status === "error") {
       return NextResponse.json(
         {
-          error: "Erro durante a sincronização",
+          error: "Erro durante sincronização de estoque",
           details: result.errorMessage,
-          syncLogId: result.syncLogId,
         },
         { status: 500 }
       );
     }
 
-    // Sync inventory status after products
-    const inventoryResult = await syncInventoryStatus(accountId);
-
     return NextResponse.json({
-      message: "Sincronização concluída com sucesso",
+      message: "Sincronização de estoque concluída",
       itemsSynced: result.itemsSynced,
-      inventoryItemsSynced: inventoryResult.itemsSynced,
-      syncLogId: result.syncLogId,
     });
   } catch (err) {
     const message =

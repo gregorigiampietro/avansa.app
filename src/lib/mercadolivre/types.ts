@@ -67,6 +67,17 @@ export interface MlListingPrice {
   listing_exposure: string;
 }
 
+export interface MlInventoryStatusResponse {
+  result: {
+    available_quantity: number;
+    not_available_quantity: number;
+    not_available_detail: Array<{
+      status: string;
+      quantity: number;
+    }>;
+  };
+}
+
 export interface MlApiError {
   message: string;
   error: string;

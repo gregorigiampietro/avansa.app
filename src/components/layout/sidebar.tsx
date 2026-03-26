@@ -9,6 +9,7 @@ import {
   Users,
   Settings,
   LogOut,
+  Warehouse,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -17,6 +18,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Produtos", href: "/products", icon: Package },
+  { label: "Estoque", href: "/inventory", icon: Warehouse },
   { label: "Vendas", href: "/orders", icon: ShoppingCart },
   { label: "Contas ML", href: "/accounts", icon: Users },
   { label: "Configurações", href: "/settings", icon: Settings },

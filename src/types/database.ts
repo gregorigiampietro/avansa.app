@@ -255,6 +255,61 @@ export interface Database {
         }
         Relationships: []
       }
+      inventory_status: {
+        Row: {
+          id: string
+          product_id: string
+          ml_account_id: string
+          ml_item_id: string
+          warehouse_id: string | null
+          available: number
+          damaged: number
+          expired: number
+          lost: number
+          in_transfer: number
+          reserved: number
+          not_apt_for_sale: number
+          total_stock: number
+          last_synced_at: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          ml_account_id: string
+          ml_item_id: string
+          warehouse_id?: string | null
+          available?: number
+          damaged?: number
+          expired?: number
+          lost?: number
+          in_transfer?: number
+          reserved?: number
+          not_apt_for_sale?: number
+          last_synced_at?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          ml_account_id?: string
+          ml_item_id?: string
+          warehouse_id?: string | null
+          available?: number
+          damaged?: number
+          expired?: number
+          lost?: number
+          in_transfer?: number
+          reserved?: number
+          not_apt_for_sale?: number
+          last_synced_at?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sync_logs: {
         Row: {
           id: string
@@ -309,4 +364,5 @@ export type MlAccount = Database["public"]["Tables"]["ml_accounts"]["Row"]
 export type Product = Database["public"]["Tables"]["products"]["Row"]
 export type Order = Database["public"]["Tables"]["orders"]["Row"]
 export type WebhookEvent = Database["public"]["Tables"]["webhook_events"]["Row"]
+export type InventoryStatus = Database["public"]["Tables"]["inventory_status"]["Row"]
 export type SyncLog = Database["public"]["Tables"]["sync_logs"]["Row"]
