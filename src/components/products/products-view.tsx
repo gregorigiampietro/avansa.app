@@ -209,6 +209,7 @@ export function ProductsView({ initialProducts, accounts }: ProductsViewProps) {
       {/* Table */}
       <ProductTable
         products={filteredProducts}
+        accounts={accounts}
         onUpdateCosts={handleUpdateCosts}
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}

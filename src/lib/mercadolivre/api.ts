@@ -182,22 +182,35 @@ export async function getAllItemIds(
   accountId: string,
   mlUserId: number
 ): Promise<string[]> {
-  const allIds: string[] = [];
+  const activeIds = await fetchItemIdsByStatus(accountId, mlUserId, "active");
+  const pausedIds = await fetchItemIdsByStatus(accountId, mlUserId, "paused");
+  return [...activeIds, ...pausedIds];
+}
+
+/**
+ * Fetch item IDs for a seller filtered by status, handling pagination.
+ */
+async function fetchItemIdsByStatus(
+  accountId: string,
+  mlUserId: number,
+  status: string
+): Promise<string[]> {
+  const ids: string[] = [];
   let offset = 0;
   let total = Infinity;
 
   while (offset < total) {
     const data = await mlGet<MlItemsSearchResponse>(
       accountId,
-      `/users/${mlUserId}/items/search?status=active&offset=${offset}&limit=${SEARCH_PAGE_LIMIT}`
+      `/users/${mlUserId}/items/search?status=${status}&offset=${offset}&limit=${SEARCH_PAGE_LIMIT}`
     );
 
     total = data.paging.total;
-    allIds.push(...data.results);
+    ids.push(...data.results);
     offset += SEARCH_PAGE_LIMIT;
   }
 
-  return allIds;
+  return ids;
 }
 
 /** Shape returned by the ML multi-get /items?ids= endpoint */

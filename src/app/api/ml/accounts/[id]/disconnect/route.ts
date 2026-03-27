@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(
   _request: Request,
@@ -54,6 +55,13 @@ export async function POST(
         { status: 500 }
       );
     }
+
+    // Clean up products and inventory for this account
+    // inventory_status is cascade-deleted via product_id FK,
+    // but we also delete explicitly via ml_account_id for safety
+    const admin = createAdminClient();
+    await admin.from("inventory_status").delete().eq("ml_account_id", id);
+    await admin.from("products").delete().eq("ml_account_id", id);
 
     return NextResponse.json({ success: true });
   } catch {

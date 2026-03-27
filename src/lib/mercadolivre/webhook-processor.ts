@@ -189,6 +189,8 @@ async function processItemEvent(
     permalink: item.permalink,
     sku: item.seller_sku ?? null,
     condition: item.condition,
+    catalog_product_id: item.catalog_product_id ?? null,
+    catalog_listing: item.catalog_listing ?? false,
     last_synced_at: new Date().toISOString(),
   };
 

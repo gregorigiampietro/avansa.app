@@ -93,12 +93,31 @@ export default async function InventoryPage() {
     const { data: inventory } = await supabase
       .from("inventory_status")
       .select(
-        "id, product_id, ml_account_id, ml_item_id, available, damaged, expired, lost, in_transfer, reserved, not_apt_for_sale, total_stock, condition_details, products(id, ml_item_id, title, thumbnail, sku, status, price, permalink)"
+        "id, product_id, ml_account_id, ml_item_id, available, damaged, expired, lost, in_transfer, reserved, not_apt_for_sale, total_stock, condition_details, products(id, ml_item_id, title, thumbnail, sku, status, price, permalink, catalog_product_id, catalog_listing)"
       )
       .in("ml_account_id", accountIds)
       .order("available", { ascending: true });
 
-    inventoryData = (inventory ?? []) as unknown as InventoryRow[];
+    // Deduplicate catalog items: keep only the catalog listing when both exist
+    const allRows = (inventory ?? []) as unknown as InventoryRow[];
+    const catalogSeen = new Set<string>();
+
+    // First pass: collect catalog_product_ids that have a catalog_listing=true entry
+    for (const row of allRows) {
+      const prod = row.products as InventoryRow["products"] & { catalog_product_id?: string; catalog_listing?: boolean };
+      if (prod?.catalog_product_id && prod.catalog_listing) {
+        catalogSeen.add(prod.catalog_product_id);
+      }
+    }
+
+    // Second pass: filter out traditional listings that have a catalog counterpart
+    inventoryData = allRows.filter((row) => {
+      const prod = row.products as InventoryRow["products"] & { catalog_product_id?: string; catalog_listing?: boolean };
+      if (prod?.catalog_product_id && !prod.catalog_listing && catalogSeen.has(prod.catalog_product_id)) {
+        return false; // Skip traditional listing — catalog version is already shown
+      }
+      return true;
+    });
     stats = computeStats(inventoryData);
     chartData = computeChartData(inventoryData);
   }

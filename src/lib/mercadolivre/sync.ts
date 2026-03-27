@@ -154,6 +154,8 @@ export async function syncProducts(
         shipping_cost: shippingCost,
         net_margin: net_margin,
         margin_percent: margin_percent,
+        catalog_product_id: item.catalog_product_id ?? null,
+        catalog_listing: item.catalog_listing ?? false,
         last_synced_at: now,
       };
     });
@@ -175,6 +177,17 @@ export async function syncProducts(
           `Erro ao salvar produtos (batch ${i}): ${upsertError.message}`
         );
       }
+    }
+
+    // Remove products that no longer exist in ML (closed/deleted)
+    // CASCADE on inventory_status.product_id will clean up inventory too
+    const syncedItemIds = items.map((item) => item.id);
+    if (syncedItemIds.length > 0) {
+      await supabase
+        .from("products")
+        .delete()
+        .eq("ml_account_id", accountId)
+        .not("ml_item_id", "in", `(${syncedItemIds.join(",")})`);
     }
 
     // Mark sync as completed

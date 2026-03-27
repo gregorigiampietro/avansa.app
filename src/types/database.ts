@@ -82,6 +82,8 @@ export interface Database {
           tax_percent: number | null
           net_margin: number | null
           margin_percent: number | null
+          catalog_product_id: string | null
+          catalog_listing: boolean
           last_synced_at: string | null
           created_at: string
           updated_at: string
@@ -110,6 +112,8 @@ export interface Database {
           tax_percent?: number | null
           net_margin?: number | null
           margin_percent?: number | null
+          catalog_product_id?: string | null
+          catalog_listing?: boolean
           last_synced_at?: string | null
           created_at?: string
           updated_at?: string
@@ -138,6 +142,8 @@ export interface Database {
           tax_percent?: number | null
           net_margin?: number | null
           margin_percent?: number | null
+          catalog_product_id?: string | null
+          catalog_listing?: boolean
           last_synced_at?: string | null
           created_at?: string
           updated_at?: string

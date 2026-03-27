@@ -55,6 +55,8 @@ export interface MlItem {
   seller_sku?: string;
   condition: string;
   health?: number;
+  catalog_product_id?: string;
+  catalog_listing?: boolean;
   date_created: string;
   last_updated: string;
 }
