@@ -287,6 +287,32 @@ export function ProductTable({
           )}
         </td>
 
+        {/* Product (thumbnail + title) */}
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-3">
+            {product.thumbnail ? (
+              <Image
+                src={product.thumbnail.replace("http://", "https://")}
+                alt=""
+                width={40}
+                height={40}
+                className="size-10 shrink-0 rounded-md bg-muted object-cover"
+                unoptimized
+              />
+            ) : (
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted">
+                <ImageOff className="size-4 text-muted-foreground" />
+              </div>
+            )}
+            <span
+              className="font-medium text-foreground"
+              title={product.title ?? undefined}
+            >
+              {truncate(product.title, 40)}
+            </span>
+          </div>
+        </td>
+
         {/* Account avatar */}
         <td className="w-10 px-3 py-3 text-center">
           {!isLinkedRow && (
@@ -312,32 +338,6 @@ export function ProductTable({
             )}
             {isLinkedRow && <span className="ml-5 text-xs text-muted-foreground/50">└</span>}
             <ListingTypeBadge product={product} />
-          </div>
-        </td>
-
-        {/* Product (thumbnail + title) */}
-        <td className="px-4 py-3">
-          <div className="flex items-center gap-3">
-            {product.thumbnail ? (
-              <Image
-                src={product.thumbnail.replace("http://", "https://")}
-                alt=""
-                width={40}
-                height={40}
-                className="size-10 shrink-0 rounded-md bg-muted object-cover"
-                unoptimized
-              />
-            ) : (
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted">
-                <ImageOff className="size-4 text-muted-foreground" />
-              </div>
-            )}
-            <span
-              className="font-medium text-foreground"
-              title={product.title ?? undefined}
-            >
-              {truncate(product.title, 40)}
-            </span>
           </div>
         </td>
 
@@ -474,14 +474,14 @@ export function ProductTable({
                   aria-label="Selecionar todos"
                 />
               </th>
+              <th className={`text-left ${TH_CLASS}`}>
+                Produto
+              </th>
               <th className={`w-10 text-center ${TH_CLASS}`}>
                 Conta
               </th>
               <th className={`text-left ${TH_CLASS}`}>
                 Tipo
-              </th>
-              <th className={`text-left ${TH_CLASS}`}>
-                Produto
               </th>
               <th className={`text-left ${TH_CLASS}`}>
                 SKU

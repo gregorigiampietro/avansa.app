@@ -3,11 +3,19 @@
 import { useState, useCallback } from "react";
 import Image from "next/image";
 import { ExternalLink, ImageOff, ChevronRight, ChevronDown } from "lucide-react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { InventoryRow, ConditionDetailEntry } from "./inventory-view";
+import type { MlAccount } from "@/types/database";
 
 interface InventoryTableProps {
   rows: InventoryRow[];
+  accounts: MlAccount[];
   activeCondition: string | null;
+}
+
+function getInitials(nickname: string | null): string {
+  if (!nickname) return "ML";
+  return nickname.slice(0, 2).toUpperCase();
 }
 
 const CONDITION_LABELS: Record<string, string> = {
@@ -212,7 +220,8 @@ function getConditionsWithQty(row: InventoryRow): { condition: string; quantity:
   return conditions;
 }
 
-export function InventoryTable({ rows, activeCondition }: InventoryTableProps) {
+export function InventoryTable({ rows, accounts, activeCondition }: InventoryTableProps) {
+  const accountMap = new Map(accounts.map((a) => [a.id, a]));
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   const toggleRow = useCallback((rowId: string) => {
@@ -257,6 +266,9 @@ export function InventoryTable({ rows, activeCondition }: InventoryTableProps) {
             <th className="w-8 px-2 py-3" />
             <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Produto
+            </th>
+            <th className="w-10 px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Conta
             </th>
             <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
               SKU
@@ -331,6 +343,21 @@ export function InventoryTable({ rows, activeCondition }: InventoryTableProps) {
                     </div>
                   </td>
 
+                  {/* Account */}
+                  <td className="w-10 px-3 py-3 text-center">
+                    {(() => {
+                      const account = accountMap.get(row.ml_account_id);
+                      if (!account) return null;
+                      return (
+                        <Avatar>
+                          <AvatarFallback className="bg-[#CDFF00]/15 text-[#CDFF00] text-[10px] font-semibold">
+                            {getInitials(account.nickname)}
+                          </AvatarFallback>
+                        </Avatar>
+                      );
+                    })()}
+                  </td>
+
                   {/* SKU */}
                   <td className="px-4 py-3 text-muted-foreground">
                     {product?.sku ?? "—"}
@@ -380,7 +407,7 @@ export function InventoryTable({ rows, activeCondition }: InventoryTableProps) {
                 {/* Expanded detail row */}
                 {isExpanded && hasIssue && (
                   <tr key={`${row.id}-detail`} className="border-b border-border bg-[#1a1a1e]">
-                    <td colSpan={8}>
+                    <td colSpan={9}>
                       <ConditionDetailPanel row={row} />
                     </td>
                   </tr>

@@ -6,6 +6,7 @@ import { InventoryView, type InventoryRow } from "@/components/inventory/invento
 import type { InventoryStats } from "@/components/inventory/inventory-stats-cards";
 import type { ChartSlice } from "@/components/inventory/inventory-chart";
 import { createClient } from "@/lib/supabase/server";
+import type { MlAccount } from "@/types/database";
 
 const CONDITION_CONFIG = [
   { key: "available", label: "Disponível", color: "#CDFF00" },
@@ -73,8 +74,9 @@ export default async function InventoryPage() {
   // Check if user has ML accounts
   const { data: accounts } = await supabase
     .from("ml_accounts")
-    .select("id")
-    .eq("user_id", user.id);
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("status", "active");
 
   const hasAccounts = accounts && accounts.length > 0;
   const accountIds = accounts?.map((a) => a.id) ?? [];
@@ -110,11 +112,15 @@ export default async function InventoryPage() {
       }
     }
 
-    // Second pass: filter out traditional listings that have a catalog counterpart
+    // Second pass: filter out traditional listings that have a catalog counterpart,
+    // and filter out paused items (not relevant for inventory)
     inventoryData = allRows.filter((row) => {
       const prod = row.products as InventoryRow["products"] & { catalog_product_id?: string; catalog_listing?: boolean };
+      // Skip paused products
+      if (prod?.status === "paused") return false;
+      // Skip traditional listing when catalog version exists
       if (prod?.catalog_product_id && !prod.catalog_listing && catalogSeen.has(prod.catalog_product_id)) {
-        return false; // Skip traditional listing — catalog version is already shown
+        return false;
       }
       return true;
     });
@@ -156,6 +162,7 @@ export default async function InventoryPage() {
             data={inventoryData}
             stats={stats}
             chartData={chartData}
+            accounts={(accounts ?? []) as MlAccount[]}
           />
         )}
       </div>
