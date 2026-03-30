@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { syncProducts } from "@/lib/mercadolivre/sync";
 import { syncOrders } from "@/lib/mercadolivre/sync-orders";
 import { syncInventoryStatus } from "@/lib/mercadolivre/inventory";
+import { processWebhookEvent } from "@/lib/mercadolivre/webhook-processor";
 
 interface AccountSyncResult {
   accountId: string;
@@ -184,10 +185,84 @@ export async function GET(request: Request): Promise<NextResponse> {
     }
 
     console.info(
-      `[cron/sync-data] Concluído: ${result.succeeded} sucesso(s), ${result.failed} falha(s).`
+      `[cron/sync-data] Concluido: ${result.succeeded} sucesso(s), ${result.failed} falha(s).`
     );
 
-    return NextResponse.json(result);
+    // ============================================================
+    // Retry failed webhook events (up to 3 retries, max 50 events)
+    // ============================================================
+    let webhookRetrySucceeded = 0;
+    let webhookRetryFailed = 0;
+
+    try {
+      const { data: failedEvents, error: fetchError } = await supabase
+        .from("webhook_events")
+        .select("id, retry_count")
+        .eq("status", "error")
+        .lt("retry_count", 3)
+        .order("received_at", { ascending: true })
+        .limit(50);
+
+      if (fetchError) {
+        console.error(
+          "[cron/sync-data] Erro ao buscar eventos webhook para retry:",
+          fetchError.message
+        );
+      } else if (failedEvents && failedEvents.length > 0) {
+        console.info(
+          `[cron/sync-data] Retentando ${failedEvents.length} evento(s) webhook com erro.`
+        );
+
+        for (const event of failedEvents) {
+          // Increment retry_count and set status to processing
+          await supabase
+            .from("webhook_events")
+            .update({
+              retry_count: event.retry_count + 1,
+              status: "processing",
+              error_message: null,
+            })
+            .eq("id", event.id);
+
+          try {
+            await processWebhookEvent(event.id);
+
+            // Check if it succeeded (status should be 'completed' after processing)
+            const { data: processed } = await supabase
+              .from("webhook_events")
+              .select("status")
+              .eq("id", event.id)
+              .single();
+
+            if (processed?.status === "completed") {
+              webhookRetrySucceeded++;
+            } else {
+              webhookRetryFailed++;
+            }
+          } catch {
+            webhookRetryFailed++;
+          }
+        }
+
+        console.info(
+          `[cron/sync-data] Webhook retry: ${failedEvents.length} eventos reprocessados, ${webhookRetrySucceeded} sucesso(s), ${webhookRetryFailed} falha(s).`
+        );
+      }
+    } catch (err) {
+      console.error(
+        "[cron/sync-data] Erro inesperado no retry de webhooks:",
+        err instanceof Error ? err.message : err
+      );
+    }
+
+    return NextResponse.json({
+      ...result,
+      webhookRetry: {
+        total: webhookRetrySucceeded + webhookRetryFailed,
+        succeeded: webhookRetrySucceeded,
+        failed: webhookRetryFailed,
+      },
+    });
   } catch (err) {
     console.error(
       "[cron/sync-data] Erro inesperado:",

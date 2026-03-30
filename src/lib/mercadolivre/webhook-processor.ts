@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { mlGet } from "./api";
+import { mlGet, getListingPrices, getShippingOptions } from "./api";
+import { calculateMargin } from "@/lib/utils/calculations";
 import type { MlItem, MlOrder } from "./types";
 import type { Database } from "@/types/database";
 
@@ -10,11 +11,12 @@ type OrderInsert = Database["public"]["Tables"]["orders"]["Insert"];
  * Process a single webhook event by its ID.
  *
  * 1. Fetches the event from webhook_events
- * 2. Finds the associated ml_account
- * 3. Based on topic, fetches the resource from ML API and updates the DB
- * 4. Marks the event as processed
+ * 2. Sets status to 'processing'
+ * 3. Finds the associated ml_account
+ * 4. Based on topic, fetches the resource from ML API and updates the DB
+ * 5. Marks the event as completed or error
  *
- * Never throws — all errors are caught and logged.
+ * Never throws -- all errors are caught and logged.
  */
 export async function processWebhookEvent(eventId: string): Promise<void> {
   const supabase = createAdminClient();
@@ -29,11 +31,14 @@ export async function processWebhookEvent(eventId: string): Promise<void> {
 
     if (eventError || !event) {
       console.error(
-        `[webhook-processor] Evento ${eventId} não encontrado:`,
+        `[webhook-processor] Evento ${eventId} nao encontrado:`,
         eventError?.message
       );
       return;
     }
+
+    // Mark as processing
+    await markStatus(supabase, eventId, "processing");
 
     // Find the ML account by ml_user_id
     const { data: account, error: accountError } = await supabase
@@ -45,9 +50,9 @@ export async function processWebhookEvent(eventId: string): Promise<void> {
 
     if (accountError || !account) {
       console.warn(
-        `[webhook-processor] Conta ML não encontrada para user_id ${event.ml_user_id}. Ignorando evento ${eventId}.`
+        `[webhook-processor] Conta ML nao encontrada para user_id ${event.ml_user_id}. Ignorando evento ${eventId}.`
       );
-      await markProcessed(supabase, eventId);
+      await markStatus(supabase, eventId, "completed");
       return;
     }
 
@@ -62,32 +67,29 @@ export async function processWebhookEvent(eventId: string): Promise<void> {
 
       case "questions":
         console.info(
-          `[webhook-processor] Evento de pergunta recebido (${event.resource}). Feature futura — ignorando.`
+          `[webhook-processor] Evento de pergunta recebido (${event.resource}). Feature futura -- ignorando.`
         );
         break;
 
       default:
         console.warn(
-          `[webhook-processor] Tópico desconhecido: ${event.topic}. Ignorando evento ${eventId}.`
+          `[webhook-processor] Topico desconhecido: ${event.topic}. Ignorando evento ${eventId}.`
         );
         break;
     }
 
-    await markProcessed(supabase, eventId);
+    await markStatus(supabase, eventId, "completed");
   } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err);
     console.error(
       `[webhook-processor] Erro ao processar evento ${eventId}:`,
-      err instanceof Error ? err.message : err
+      errorMessage
     );
 
-    // Still try to mark as processed to avoid infinite retry loops.
-    // In production you might want a separate "error" flag instead.
+    // Mark as error so the cron can retry later
     try {
       const supabaseRetry = createAdminClient();
-      await supabaseRetry
-        .from("webhook_events")
-        .update({ status: "error", error_message: "Erro desconhecido durante processamento" })
-        .eq("id", eventId);
+      await markStatus(supabaseRetry, eventId, "error", errorMessage);
     } catch {
       // Nothing more we can do
     }
@@ -169,6 +171,10 @@ async function processOrderEvent(
   );
 }
 
+/**
+ * Complete item processing that mirrors sync.ts behavior:
+ * fetches fees, shipping, existing costs, and recalculates margin.
+ */
 async function processItemEvent(
   supabase: ReturnType<typeof createAdminClient>,
   accountId: string,
@@ -177,6 +183,66 @@ async function processItemEvent(
   // resource format: "/items/MLB123456"
   const item = await mlGet<MlItem>(accountId, resource);
 
+  // 1. Fetch ML fees
+  let mlFee = 0;
+  try {
+    const priceData = await getListingPrices(
+      accountId,
+      item.price,
+      item.listing_type_id,
+      item.category_id
+    );
+    mlFee = priceData.sale_fee_amount ?? 0;
+  } catch (err) {
+    console.warn(
+      `[webhook-processor] Erro ao buscar taxas ML para ${item.id}:`,
+      err instanceof Error ? err.message : err
+    );
+  }
+
+  // 2. Fetch shipping cost
+  let shippingCost = 0;
+  try {
+    const shippingData = await getShippingOptions(accountId, item.id);
+    if (shippingData.options?.length > 0) {
+      const standardOption =
+        shippingData.options.find(
+          (o) => o.shipping_method_type === "standard"
+        ) ?? shippingData.options[0];
+      shippingCost = standardOption.list_cost;
+    }
+  } catch (err) {
+    console.warn(
+      `[webhook-processor] Erro ao buscar frete para ${item.id}:`,
+      err instanceof Error ? err.message : err
+    );
+  }
+
+  // 3. Fetch existing product costs from DB
+  const { data: existingProduct } = await supabase
+    .from("products")
+    .select("cost_price, packaging_cost, other_costs, tax_percent")
+    .eq("ml_account_id", accountId)
+    .eq("ml_item_id", item.id)
+    .single();
+
+  const costPrice = existingProduct?.cost_price ?? 0;
+  const packagingCost = existingProduct?.packaging_cost ?? 0;
+  const otherCosts = existingProduct?.other_costs ?? 0;
+  const taxPercent = existingProduct?.tax_percent ?? 0;
+
+  // 4. Calculate margin
+  const { net_margin, margin_percent } = calculateMargin({
+    price: item.price,
+    cost_price: costPrice,
+    packaging_cost: packagingCost,
+    other_costs: otherCosts,
+    ml_fee: mlFee,
+    shipping_cost: shippingCost,
+    tax_percent: taxPercent,
+  });
+
+  // 5. Update product with ALL fields
   const productUpdate: ProductUpdate = {
     title: item.title,
     thumbnail: item.thumbnail,
@@ -191,6 +257,10 @@ async function processItemEvent(
     condition: item.condition,
     catalog_product_id: item.catalog_product_id ?? null,
     catalog_listing: item.catalog_listing ?? false,
+    ml_fee: mlFee,
+    shipping_cost: shippingCost,
+    net_margin,
+    margin_percent,
     last_synced_at: new Date().toISOString(),
   };
 
@@ -205,7 +275,7 @@ async function processItemEvent(
   }
 
   console.info(
-    `[webhook-processor] Produto ${item.id} atualizado para conta ${accountId}.`
+    `[webhook-processor] Produto ${item.id} atualizado com taxas/frete/margem para conta ${accountId}.`
   );
 }
 
@@ -213,18 +283,34 @@ async function processItemEvent(
 // Helpers
 // ============================================================
 
-async function markProcessed(
+type WebhookStatus = "pending" | "processing" | "completed" | "error";
+
+async function markStatus(
   supabase: ReturnType<typeof createAdminClient>,
-  eventId: string
+  eventId: string,
+  status: WebhookStatus,
+  errorMessage?: string
 ): Promise<void> {
+  const update: Database["public"]["Tables"]["webhook_events"]["Update"] = {
+    status,
+  };
+
+  if (status === "completed" || status === "error") {
+    update.processed_at = new Date().toISOString();
+  }
+
+  if (errorMessage) {
+    update.error_message = errorMessage;
+  }
+
   const { error } = await supabase
     .from("webhook_events")
-    .update({ status: "completed", processed_at: new Date().toISOString() })
+    .update(update)
     .eq("id", eventId);
 
   if (error) {
     console.error(
-      `[webhook-processor] Erro ao marcar evento ${eventId} como processado:`,
+      `[webhook-processor] Erro ao atualizar status do evento ${eventId} para ${status}:`,
       error.message
     );
   }
