@@ -6,6 +6,12 @@ import type { DateRange } from "react-day-picker";
 import { OrderTable } from "./order-table";
 import { OrderStatsCards } from "./order-stats-cards";
 import { OrderDatePicker } from "./order-date-picker";
+import {
+  SavedFilters,
+  loadLastFilter,
+  saveLastFilter,
+  type SavedFilterValues,
+} from "./saved-filters";
 import type { Order, MlAccount } from "@/types/database";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -121,11 +127,47 @@ export function OrdersView({ initialOrders, accounts }: OrdersViewProps) {
     }
   }, []);
 
+  // Restore last filter from localStorage on mount
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    if (mountedRef.current) return;
+    mountedRef.current = true;
+    const last = loadLastFilter();
+    if (!last) return;
+    const restored: OrderFilters = {
+      accountId: last.accountId ?? null,
+      status: last.status ?? null,
+      period: last.period ?? null,
+      dateFrom: last.dateFrom ?? null,
+      dateTo: last.dateTo ?? null,
+      search: last.search ?? null,
+      page: 1,
+      pageSize: 50,
+      sortField: last.sortField ?? null,
+      sortDirection: last.sortDirection ?? "desc",
+      groupBy: last.groupBy ?? null,
+    };
+    if (last.search) setSearchInput(last.search);
+    setFilters(restored);
+    fetchOrders(restored);
+  }, [fetchOrders]);
+
   const updateFilter = useCallback(
     (patch: Partial<OrderFilters>) => {
       const next = { ...filters, ...patch, page: patch.page ?? 1 };
       setFilters(next);
       fetchOrders(next);
+      saveLastFilter({
+        accountId: next.accountId,
+        period: next.period,
+        dateFrom: next.dateFrom,
+        dateTo: next.dateTo,
+        status: next.status,
+        search: next.search,
+        groupBy: next.groupBy,
+        sortField: next.sortField,
+        sortDirection: next.sortDirection,
+      });
     },
     [filters, fetchOrders]
   );
@@ -215,6 +257,29 @@ export function OrdersView({ initialOrders, accounts }: OrdersViewProps) {
     [filters, fetchOrders]
   );
 
+  const handleApplySavedFilter = useCallback(
+    (saved: SavedFilterValues) => {
+      const next: OrderFilters = {
+        accountId: saved.accountId ?? null,
+        status: saved.status ?? null,
+        period: saved.period ?? null,
+        dateFrom: saved.dateFrom ?? null,
+        dateTo: saved.dateTo ?? null,
+        search: saved.search ?? null,
+        page: 1,
+        pageSize: 50,
+        sortField: saved.sortField ?? null,
+        sortDirection: saved.sortDirection ?? "desc",
+        groupBy: saved.groupBy ?? null,
+      };
+      setSearchInput(saved.search ?? "");
+      setFilters(next);
+      fetchOrders(next);
+      saveLastFilter(saved);
+    },
+    [fetchOrders]
+  );
+
   const handleSync = useCallback(
     async (accountId: string) => {
       setSyncingAccountId(accountId);
@@ -275,6 +340,22 @@ export function OrdersView({ initialOrders, accounts }: OrdersViewProps) {
           ))}
         </div>
       )}
+
+      {/* Saved Filters */}
+      <SavedFilters
+        currentFilters={{
+          accountId: filters.accountId,
+          period: filters.period,
+          dateFrom: filters.dateFrom,
+          dateTo: filters.dateTo,
+          status: filters.status,
+          search: filters.search,
+          groupBy: filters.groupBy,
+          sortField: filters.sortField,
+          sortDirection: filters.sortDirection,
+        }}
+        onApplyFilter={handleApplySavedFilter}
+      />
 
       {/* Filters */}
       <div className="flex flex-col gap-3">
