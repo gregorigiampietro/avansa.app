@@ -1,8 +1,9 @@
 "use client";
 
-import type { Order } from "@/types/database";
-import { formatCurrency, formatDateTime, truncate } from "@/lib/utils/formatters";
-import { ArrowDown, ArrowUp, ArrowUpDown, Package } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import type { Order, MlAccount } from "@/types/database";
+import { formatCurrency, formatDate, formatDateTime, truncate } from "@/lib/utils/formatters";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronRight, Package } from "lucide-react";
 import {
   Pagination,
   PaginationContent,
@@ -24,6 +25,15 @@ interface OrderTableProps {
     totalPages: number;
   };
   onPageChange?: (page: number) => void;
+  groupBy?: string | null;
+  accounts?: MlAccount[];
+}
+
+interface OrderGroup {
+  key: string;
+  label: string;
+  orders: Order[];
+  totalAmount: number;
 }
 
 type SortableColumn = {
@@ -201,6 +211,180 @@ function getPageNumbers(currentPage: number, totalPages: number): (number | "ell
   return pages;
 }
 
+function buildGroups(
+  orders: Order[],
+  groupBy: string,
+  accounts?: MlAccount[]
+): OrderGroup[] {
+  const map = new Map<string, Order[]>();
+
+  for (const order of orders) {
+    let key: string;
+    switch (groupBy) {
+      case "day":
+        key = formatDate(order.date_created);
+        break;
+      case "product":
+        key = order.item_title ?? "Sem titulo";
+        break;
+      case "account":
+        key = order.ml_account_id;
+        break;
+      default:
+        key = "all";
+    }
+    const group = map.get(key);
+    if (group) {
+      group.push(order);
+    } else {
+      map.set(key, [order]);
+    }
+  }
+
+  const accountMap = new Map<string, string>();
+  if (accounts) {
+    for (const acc of accounts) {
+      accountMap.set(
+        acc.id,
+        acc.nickname ?? acc.email ?? `Conta ${acc.ml_user_id}`
+      );
+    }
+  }
+
+  return Array.from(map.entries()).map(([key, groupOrders]) => ({
+    key,
+    label:
+      groupBy === "account" ? (accountMap.get(key) ?? key) : key,
+    orders: groupOrders,
+    totalAmount: groupOrders.reduce(
+      (sum, o) => sum + (o.total_amount ?? 0),
+      0
+    ),
+  }));
+}
+
+function OrderRow({ order }: { order: Order }) {
+  const profitPositive = order.net_profit != null && order.net_profit > 0;
+  const profitNegative = order.net_profit != null && order.net_profit < 0;
+
+  return (
+    <tr className="border-b border-border transition-colors hover:bg-[#242429]">
+      {/* Order ID */}
+      <td className="px-4 py-3">
+        <span className="text-xs text-muted-foreground">
+          {order.ml_order_id}
+        </span>
+      </td>
+
+      {/* Date */}
+      <td className="px-4 py-3 text-foreground">
+        {formatDateTime(order.date_created)}
+      </td>
+
+      {/* Product */}
+      <td className="px-4 py-3">
+        <span
+          className="font-medium text-foreground"
+          title={order.item_title ?? undefined}
+        >
+          {truncate(order.item_title, 35)}
+        </span>
+      </td>
+
+      {/* Buyer */}
+      <td className="px-4 py-3 text-muted-foreground">
+        {order.buyer_nickname ?? "\u2014"}
+      </td>
+
+      {/* Quantity */}
+      <td className="px-4 py-3 text-right text-foreground">
+        {order.quantity ?? "\u2014"}
+      </td>
+
+      {/* Total Amount */}
+      <td className="px-4 py-3 text-right font-medium text-foreground">
+        {formatCurrency(order.total_amount)}
+      </td>
+
+      {/* ML Fee */}
+      <td className="px-4 py-3 text-right text-muted-foreground">
+        {formatCurrency(order.ml_fee)}
+      </td>
+
+      {/* Net Profit */}
+      <td className="px-4 py-3 text-right">
+        {order.net_profit != null ? (
+          <span
+            className={
+              profitPositive
+                ? "font-medium text-[#CDFF00]"
+                : profitNegative
+                  ? "font-medium text-[#FF453A]"
+                  : "text-muted-foreground"
+            }
+          >
+            {formatCurrency(order.net_profit)}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">{"\u2014"}</span>
+        )}
+      </td>
+
+      {/* Order Status */}
+      <td className="px-4 py-3 text-center">
+        <OrderStatusBadge status={order.status} />
+      </td>
+
+      {/* Payment Status */}
+      <td className="px-4 py-3 text-center">
+        <PaymentStatusBadge status={order.payment_status} />
+      </td>
+
+      {/* Shipping Status */}
+      <td className="px-4 py-3 text-center">
+        <ShippingBadge status={order.shipping_status} />
+      </td>
+    </tr>
+  );
+}
+
+function GroupHeader({
+  group,
+  expanded,
+  onToggle,
+  colSpan,
+}: {
+  group: OrderGroup;
+  expanded: boolean;
+  onToggle: () => void;
+  colSpan: number;
+}) {
+  return (
+    <tr
+      className="cursor-pointer border-b border-border bg-muted/30 transition-colors hover:bg-muted/50"
+      onClick={onToggle}
+    >
+      <td colSpan={colSpan} className="px-4 py-2.5">
+        <div className="flex items-center gap-2">
+          {expanded ? (
+            <ChevronDown className="size-4 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="size-4 text-muted-foreground" />
+          )}
+          <span className="font-medium text-foreground">{group.label}</span>
+          <span className="text-xs text-muted-foreground">
+            {group.orders.length}{" "}
+            {group.orders.length === 1 ? "venda" : "vendas"}
+          </span>
+          <span className="text-xs font-medium text-muted-foreground">
+            {formatCurrency(group.totalAmount)}
+          </span>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 export function OrderTable({
   orders,
   sortField,
@@ -208,7 +392,30 @@ export function OrderTable({
   onSort,
   pagination,
   onPageChange,
+  groupBy,
+  accounts,
 }: OrderTableProps) {
+  const groups = useMemo(() => {
+    if (!groupBy) return null;
+    return buildGroups(orders, groupBy, accounts);
+  }, [orders, groupBy, accounts]);
+
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
+    new Set()
+  );
+
+  const toggleGroup = (key: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
   if (orders.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-card p-12 text-center">
@@ -253,95 +460,24 @@ export function OrderTable({
             </tr>
           </thead>
           <tbody>
-            {orders.map((order) => {
-              const profitPositive =
-                order.net_profit != null && order.net_profit > 0;
-              const profitNegative =
-                order.net_profit != null && order.net_profit < 0;
-
-              return (
-                <tr
-                  key={order.id}
-                  className="border-b border-border transition-colors hover:bg-[#242429]"
-                >
-                  {/* Order ID */}
-                  <td className="px-4 py-3">
-                    <span className="text-xs text-muted-foreground">
-                      {order.ml_order_id}
-                    </span>
-                  </td>
-
-                  {/* Date */}
-                  <td className="px-4 py-3 text-foreground">
-                    {formatDateTime(order.date_created)}
-                  </td>
-
-                  {/* Product */}
-                  <td className="px-4 py-3">
-                    <span
-                      className="font-medium text-foreground"
-                      title={order.item_title ?? undefined}
-                    >
-                      {truncate(order.item_title, 35)}
-                    </span>
-                  </td>
-
-                  {/* Buyer */}
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {order.buyer_nickname ?? "\u2014"}
-                  </td>
-
-                  {/* Quantity */}
-                  <td className="px-4 py-3 text-right text-foreground">
-                    {order.quantity ?? "\u2014"}
-                  </td>
-
-                  {/* Total Amount */}
-                  <td className="px-4 py-3 text-right font-medium text-foreground">
-                    {formatCurrency(order.total_amount)}
-                  </td>
-
-                  {/* ML Fee */}
-                  <td className="px-4 py-3 text-right text-muted-foreground">
-                    {formatCurrency(order.ml_fee)}
-                  </td>
-
-                  {/* Net Profit */}
-                  <td className="px-4 py-3 text-right">
-                    {order.net_profit != null ? (
-                      <span
-                        className={
-                          profitPositive
-                            ? "font-medium text-[#CDFF00]"
-                            : profitNegative
-                              ? "font-medium text-[#FF453A]"
-                              : "text-muted-foreground"
-                        }
-                      >
-                        {formatCurrency(order.net_profit)}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">{"\u2014"}</span>
-                    )}
-                  </td>
-
-                  {/* Order Status */}
-                  <td className="px-4 py-3 text-center">
-                    <OrderStatusBadge status={order.status} />
-                  </td>
-
-                  {/* Payment Status */}
-                  <td className="px-4 py-3 text-center">
-                    <PaymentStatusBadge status={order.payment_status} />
-                  </td>
-
-                  {/* Shipping Status */}
-                  <td className="px-4 py-3 text-center">
-                    <ShippingBadge status={order.shipping_status} />
-                  </td>
-                </tr>
-              );
-            })}
+            {groups
+              ? groups.map((group) => (
+                  <React.Fragment key={group.key}>
+                    <GroupHeader
+                      group={group}
+                      expanded={!collapsedGroups.has(group.key)}
+                      onToggle={() => toggleGroup(group.key)}
+                      colSpan={COLUMNS.length}
+                    />
+                    {!collapsedGroups.has(group.key) &&
+                      group.orders.map((order) => (
+                        <OrderRow key={order.id} order={order} />
+                      ))}
+                  </React.Fragment>
+                ))
+              : orders.map((order) => (
+                  <OrderRow key={order.id} order={order} />
+                ))}
           </tbody>
         </table>
       </div>

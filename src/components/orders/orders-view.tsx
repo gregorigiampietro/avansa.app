@@ -10,6 +10,13 @@ import type { Order, MlAccount } from "@/types/database";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface OrdersViewProps {
   initialOrders: Order[];
@@ -27,6 +34,7 @@ type OrderFilters = {
   pageSize: number;
   sortField: string | null;
   sortDirection: "asc" | "desc";
+  groupBy: string | null;
 };
 
 type PaginationInfo = {
@@ -65,6 +73,7 @@ export function OrdersView({ initialOrders, accounts }: OrdersViewProps) {
     pageSize: 50,
     sortField: null,
     sortDirection: "desc",
+    groupBy: null,
   });
   const [pagination, setPagination] = useState<PaginationInfo>({
     page: 1,
@@ -321,7 +330,7 @@ export function OrdersView({ initialOrders, accounts }: OrdersViewProps) {
           </div>
         </div>
 
-        {/* Row 2: Period presets + Date range picker */}
+        {/* Row 2: Period presets + Date range picker + GroupBy */}
         <div className="flex flex-wrap items-center gap-2">
           {PERIOD_PRESETS.map((preset) => (
             <Button
@@ -356,6 +365,25 @@ export function OrdersView({ initialOrders, accounts }: OrdersViewProps) {
               Limpar periodo
             </Button>
           )}
+
+          <div className="ml-auto">
+            <Select
+              value={filters.groupBy ?? "none"}
+              onValueChange={(val) =>
+                updateFilter({ groupBy: val === "none" ? null : val })
+              }
+            >
+              <SelectTrigger size="sm">
+                <SelectValue placeholder="Agrupar por..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sem agrupamento</SelectItem>
+                <SelectItem value="day">Por dia</SelectItem>
+                <SelectItem value="product">Por produto</SelectItem>
+                <SelectItem value="account">Por conta</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -381,6 +409,8 @@ export function OrdersView({ initialOrders, accounts }: OrdersViewProps) {
         onSort={handleSort}
         pagination={pagination}
         onPageChange={handlePageChange}
+        groupBy={filters.groupBy}
+        accounts={accounts}
       />
     </div>
   );
