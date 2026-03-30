@@ -38,6 +38,48 @@ function PaymentStatusBadge({ status }: { status: string | null }) {
   }
 }
 
+function OrderStatusBadge({ status }: { status: string | null }) {
+  const statusConfig: Record<string, { label: string; className: string }> = {
+    payment_required: {
+      label: "Pagamento pendente",
+      className: "bg-[#FF9F0A]/15 text-[#FF9F0A]",
+    },
+    payment_in_process: {
+      label: "Em processamento",
+      className: "bg-[#FF9F0A]/15 text-[#FF9F0A]",
+    },
+    partially_paid: {
+      label: "Parcialmente pago",
+      className: "bg-[#FF9F0A]/15 text-[#FF9F0A]",
+    },
+    paid: {
+      label: "Pago",
+      className: "bg-[#CDFF00]/15 text-[#CDFF00]",
+    },
+    cancelled: {
+      label: "Cancelado",
+      className: "bg-[#FF453A]/15 text-[#FF453A]",
+    },
+    invalid: {
+      label: "Inválido",
+      className: "bg-[#FF453A]/15 text-[#FF453A]",
+    },
+  };
+
+  const config = statusConfig[status ?? ""] ?? {
+    label: status ?? "\u2014",
+    className: "bg-muted text-muted-foreground",
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${config.className}`}
+    >
+      {config.label}
+    </span>
+  );
+}
+
 function ShippingBadge({ status }: { status: string | null }) {
   if (!status) return <span className="text-muted-foreground">{"\u2014"}</span>;
 
@@ -88,7 +130,7 @@ export function OrderTable({ orders }: OrderTableProps) {
 
   return (
     <div className="overflow-x-auto rounded-lg border border-border bg-card">
-      <table className="w-full min-w-[1100px] text-sm">
+      <table className="w-full min-w-[1250px] text-sm">
         <thead>
           <tr className="border-b border-border bg-muted/50">
             <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -114,6 +156,9 @@ export function OrderTable({ orders }: OrderTableProps) {
             </th>
             <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Lucro
+            </th>
+            <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Status
             </th>
             <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Pagamento
@@ -194,6 +239,11 @@ export function OrderTable({ orders }: OrderTableProps) {
                   ) : (
                     <span className="text-muted-foreground">{"\u2014"}</span>
                   )}
+                </td>
+
+                {/* Order Status */}
+                <td className="px-4 py-3 text-center">
+                  <OrderStatusBadge status={order.status} />
                 </td>
 
                 {/* Payment Status */}

@@ -20,9 +20,12 @@ type OrderFilters = {
 
 const STATUS_OPTIONS = [
   { value: "", label: "Todos os status" },
+  { value: "payment_required", label: "Pagamento pendente" },
+  { value: "payment_in_process", label: "Em processamento" },
+  { value: "partially_paid", label: "Parcialmente pago" },
   { value: "paid", label: "Pago" },
-  { value: "confirmed", label: "Confirmado" },
   { value: "cancelled", label: "Cancelado" },
+  { value: "invalid", label: "Inválido" },
 ] as const;
 
 const PERIOD_OPTIONS = [
