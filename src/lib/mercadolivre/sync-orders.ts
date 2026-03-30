@@ -8,6 +8,9 @@ type OrderInsert = Database["public"]["Tables"]["orders"]["Insert"];
 /** Max orders per search page (ML API limit) */
 const SEARCH_PAGE_LIMIT = 50;
 
+export interface OrderSyncOptions {
+  incremental?: boolean;
+}
 
 export interface OrderSyncResult {
   syncLogId: string;
@@ -17,7 +20,10 @@ export interface OrderSyncResult {
 }
 
 /**
- * Full sync of orders for a Mercado Livre account.
+ * Sync orders for a Mercado Livre account.
+ *
+ * When `options.incremental` is true, only fetches orders created since
+ * the last completed sync (uses `date_created.from` ML API filter).
  *
  * 1. Creates a sync_log entry with status "running"
  * 2. Fetches orders via /orders/search with pagination
@@ -28,8 +34,10 @@ export interface OrderSyncResult {
  */
 export async function syncOrders(
   accountId: string,
-  mlUserId: number
+  mlUserId: number,
+  options?: OrderSyncOptions
 ): Promise<OrderSyncResult> {
+  const incremental = options?.incremental ?? false;
   const supabase = createAdminClient();
 
   // Create sync log entry
@@ -37,7 +45,7 @@ export async function syncOrders(
     .from("sync_logs")
     .insert({
       ml_account_id: accountId,
-      sync_type: "orders",
+      sync_type: incremental ? "orders_incremental" : "orders",
       status: "running",
       items_synced: 0,
       started_at: new Date().toISOString(),
@@ -54,7 +62,25 @@ export async function syncOrders(
   const syncLogId = syncLog.id;
 
   try {
-    // Fetch all orders with pagination
+    // For incremental sync, find the last completed orders sync timestamp
+    let dateFromFilter = "";
+    if (incremental) {
+      const { data: lastSync } = await supabase
+        .from("sync_logs")
+        .select("completed_at")
+        .eq("ml_account_id", accountId)
+        .in("sync_type", ["orders", "orders_incremental"])
+        .eq("status", "completed")
+        .order("completed_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (lastSync?.completed_at) {
+        dateFromFilter = `&order.date_created.from=${lastSync.completed_at}`;
+      }
+    }
+
+    // Fetch orders with pagination
     const allOrders: MlOrder[] = [];
     let offset = 0;
     let total = Infinity;
@@ -62,7 +88,7 @@ export async function syncOrders(
     while (offset < total) {
       const data = await mlGet<MlOrderSearchResponse>(
         accountId,
-        `/orders/search?seller=${mlUserId}&sort=date_desc&offset=${offset}&limit=${SEARCH_PAGE_LIMIT}`
+        `/orders/search?seller=${mlUserId}&sort=date_desc&offset=${offset}&limit=${SEARCH_PAGE_LIMIT}${dateFromFilter}`
       );
 
       total = data.paging.total;

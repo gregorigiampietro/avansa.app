@@ -53,8 +53,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Run sync
-    const result = await syncProducts(accountId, account.ml_user_id);
+    // Run incremental sync (manual trigger — only fetch changed items)
+    const result = await syncProducts(accountId, account.ml_user_id, {
+      incremental: true,
+    });
 
     if (result.status === "error") {
       return NextResponse.json(

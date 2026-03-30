@@ -13,8 +13,32 @@ export interface SyncResult {
   errorMessage?: string;
 }
 
+export interface SyncProductsOptions {
+  incremental?: boolean;
+}
+
+/** Existing product data used for incremental comparison */
+interface ExistingProduct {
+  ml_item_id: string;
+  price: number | null;
+  listing_type: string | null;
+  category_id: string | null;
+  ml_fee: number | null;
+  shipping_cost: number | null;
+  net_margin: number | null;
+  margin_percent: number | null;
+  cost_price: number | null;
+  packaging_cost: number | null;
+  other_costs: number | null;
+  tax_percent: number | null;
+}
+
 /**
- * Full sync of all products for a Mercado Livre account.
+ * Sync products for a Mercado Livre account.
+ *
+ * When `options.incremental` is true, skips fee/shipping API calls for items
+ * whose price, listing type, and category have not changed since last sync.
+ * Also skips the deletion step (only full sync removes stale products).
  *
  * 1. Creates a sync_log entry with status "running"
  * 2. Fetches all item IDs from ML API
@@ -24,8 +48,10 @@ export interface SyncResult {
  */
 export async function syncProducts(
   accountId: string,
-  mlUserId: number
+  mlUserId: number,
+  options?: SyncProductsOptions
 ): Promise<SyncResult> {
+  const incremental = options?.incremental ?? false;
   const supabase = createAdminClient();
 
   // Create sync log entry
@@ -33,7 +59,7 @@ export async function syncProducts(
     .from("sync_logs")
     .insert({
       ml_account_id: accountId,
-      sync_type: "products",
+      sync_type: incremental ? "products_incremental" : "products",
       status: "running",
       items_synced: 0,
       started_at: new Date().toISOString(),
@@ -56,9 +82,46 @@ export async function syncProducts(
     // Fetch full item details (already batched in groups of 20 inside getItems)
     const items = await getItems(accountId, itemIds);
 
-    // Fetch ML fees (deduplicated by price|listing_type|category)
-    const feeCache = new Map<string, number>();
+    // Load existing products for cost preservation and incremental comparison
+    const existingItemIds = items.map((item) => item.id);
+    const { data: existingProducts } = await supabase
+      .from("products")
+      .select(
+        "ml_item_id, price, listing_type, category_id, ml_fee, shipping_cost, net_margin, margin_percent, cost_price, packaging_cost, other_costs, tax_percent"
+      )
+      .eq("ml_account_id", accountId)
+      .in("ml_item_id", existingItemIds);
+
+    const existingMap = new Map<string, ExistingProduct>(
+      (existingProducts ?? []).map((p) => [p.ml_item_id, p as ExistingProduct])
+    );
+
+    // Determine which items need fee/shipping recalculation
+    // In incremental mode, skip items where price/listing/category are unchanged
+    const itemsNeedingFees: MlItem[] = [];
+    const itemsReusing: Map<string, ExistingProduct> = new Map();
+
     for (const item of items) {
+      const existing = existingMap.get(item.id);
+      if (
+        incremental &&
+        existing &&
+        existing.price === item.price &&
+        existing.listing_type === item.listing_type_id &&
+        existing.category_id === item.category_id &&
+        existing.ml_fee != null &&
+        existing.shipping_cost != null
+      ) {
+        // Price/listing/category unchanged — reuse existing fee/shipping/margin
+        itemsReusing.set(item.id, existing);
+      } else {
+        itemsNeedingFees.push(item);
+      }
+    }
+
+    // Fetch ML fees (deduplicated by price|listing_type|category) — only for changed items
+    const feeCache = new Map<string, number>();
+    for (const item of itemsNeedingFees) {
       const key = `${item.price}|${item.listing_type_id}|${item.category_id}`;
       if (!feeCache.has(key)) {
         try {
@@ -75,11 +138,11 @@ export async function syncProducts(
       }
     }
 
-    // Fetch shipping costs (batched with concurrency limit)
+    // Fetch shipping costs (batched with concurrency limit) — only for changed items
     const shippingCostMap = new Map<string, number>();
     const SHIPPING_BATCH_SIZE = 5;
-    for (let i = 0; i < items.length; i += SHIPPING_BATCH_SIZE) {
-      const batch = items.slice(i, i + SHIPPING_BATCH_SIZE);
+    for (let i = 0; i < itemsNeedingFees.length; i += SHIPPING_BATCH_SIZE) {
+      const batch = itemsNeedingFees.slice(i, i + SHIPPING_BATCH_SIZE);
       const results = await Promise.allSettled(
         batch.map((item) => getShippingOptions(accountId, item.id))
       );
@@ -95,46 +158,52 @@ export async function syncProducts(
         }
       }
       // Small delay between batches to avoid rate limits
-      if (i + SHIPPING_BATCH_SIZE < items.length) {
+      if (i + SHIPPING_BATCH_SIZE < itemsNeedingFees.length) {
         await new Promise((resolve) => setTimeout(resolve, 200));
       }
     }
 
-    // Fetch existing cost data to preserve user-entered costs and recalculate margins
-    const existingItemIds = items.map((item) => item.id);
-    const { data: existingProducts } = await supabase
-      .from("products")
-      .select("ml_item_id, cost_price, packaging_cost, other_costs, tax_percent")
-      .eq("ml_account_id", accountId)
-      .in("ml_item_id", existingItemIds);
-
-    const existingCostsMap = new Map(
-      (existingProducts ?? []).map((p) => [p.ml_item_id, p])
-    );
-
     // Map ML items to product rows for upsert
     const now = new Date().toISOString();
     const productRows: ProductInsert[] = items.map((item: MlItem) => {
-      const feeKey = `${item.price}|${item.listing_type_id}|${item.category_id}`;
-      const mlFee = feeCache.get(feeKey) ?? 0;
-      const shippingCost = shippingCostMap.get(item.id) ?? 0;
+      // Check if this item can reuse existing fee/shipping/margin values
+      const reused = itemsReusing.get(item.id);
+      const existing = existingMap.get(item.id);
 
-      // Preserve existing user-entered costs for margin recalculation
-      const existing = existingCostsMap.get(item.id);
-      const costPrice = existing?.cost_price ?? 0;
-      const packagingCost = existing?.packaging_cost ?? 0;
-      const otherCosts = existing?.other_costs ?? 0;
-      const taxPercent = existing?.tax_percent ?? 0;
+      let mlFee: number;
+      let shippingCost: number;
+      let netMargin: number;
+      let marginPercent: number;
 
-      const { net_margin, margin_percent } = calculateMargin({
-        price: item.price,
-        cost_price: costPrice,
-        packaging_cost: packagingCost,
-        other_costs: otherCosts,
-        ml_fee: mlFee,
-        shipping_cost: shippingCost,
-        tax_percent: taxPercent,
-      });
+      if (reused) {
+        // Reuse existing values — price/listing/category unchanged
+        mlFee = reused.ml_fee ?? 0;
+        shippingCost = reused.shipping_cost ?? 0;
+        netMargin = reused.net_margin ?? 0;
+        marginPercent = reused.margin_percent ?? 0;
+      } else {
+        // Fetch fresh values for changed/new items
+        const feeKey = `${item.price}|${item.listing_type_id}|${item.category_id}`;
+        mlFee = feeCache.get(feeKey) ?? 0;
+        shippingCost = shippingCostMap.get(item.id) ?? 0;
+
+        const costPrice = existing?.cost_price ?? 0;
+        const packagingCost = existing?.packaging_cost ?? 0;
+        const otherCosts = existing?.other_costs ?? 0;
+        const taxPercent = existing?.tax_percent ?? 0;
+
+        const margin = calculateMargin({
+          price: item.price,
+          cost_price: costPrice,
+          packaging_cost: packagingCost,
+          other_costs: otherCosts,
+          ml_fee: mlFee,
+          shipping_cost: shippingCost,
+          tax_percent: taxPercent,
+        });
+        netMargin = margin.net_margin;
+        marginPercent = margin.margin_percent;
+      }
 
       return {
         ml_account_id: accountId,
@@ -152,8 +221,8 @@ export async function syncProducts(
         condition: item.condition,
         ml_fee: mlFee,
         shipping_cost: shippingCost,
-        net_margin: net_margin,
-        margin_percent: margin_percent,
+        net_margin: netMargin,
+        margin_percent: marginPercent,
         catalog_product_id: item.catalog_product_id ?? null,
         catalog_listing: item.catalog_listing ?? false,
         last_synced_at: now,
@@ -180,14 +249,17 @@ export async function syncProducts(
     }
 
     // Remove products that no longer exist in ML (closed/deleted)
+    // Only on full sync — incremental sync should not delete stale products
     // CASCADE on inventory_status.product_id will clean up inventory too
-    const syncedItemIds = items.map((item) => item.id);
-    if (syncedItemIds.length > 0) {
-      await supabase
-        .from("products")
-        .delete()
-        .eq("ml_account_id", accountId)
-        .not("ml_item_id", "in", `(${syncedItemIds.join(",")})`);
+    if (!incremental) {
+      const syncedItemIds = items.map((item) => item.id);
+      if (syncedItemIds.length > 0) {
+        await supabase
+          .from("products")
+          .delete()
+          .eq("ml_account_id", accountId)
+          .not("ml_item_id", "in", `(${syncedItemIds.join(",")})`);
+      }
     }
 
     // Mark sync as completed
