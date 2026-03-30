@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { OrderTable } from "./order-table";
+import { OrderStatsCards } from "./order-stats-cards";
 import type { Order, MlAccount } from "@/types/database";
 import { Button } from "@/components/ui/button";
 import { Loader2, RefreshCw, SlidersHorizontal } from "lucide-react";
@@ -190,6 +191,9 @@ export function OrdersView({ initialOrders, accounts }: OrdersViewProps) {
           </select>
         </div>
       </div>
+
+      {/* Metrics Cards */}
+      <OrderStatsCards orders={orders} />
 
       {/* Summary */}
       <div className="flex items-center gap-4 text-sm text-muted-foreground">
