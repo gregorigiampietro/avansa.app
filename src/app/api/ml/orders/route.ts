@@ -31,6 +31,11 @@ export async function GET(request: NextRequest) {
     const accountId = searchParams.get("accountId");
     const status = searchParams.get("status");
     const period = searchParams.get("period");
+    const dateFrom = searchParams.get("dateFrom");
+    const dateTo = searchParams.get("dateTo");
+    const search = searchParams.get("search");
+    const sortField = searchParams.get("sortField");
+    const sortDirection = searchParams.get("sortDirection");
     const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
     const pageSize = Math.min(
       MAX_PAGE_SIZE,
@@ -80,8 +85,15 @@ export async function GET(request: NextRequest) {
       query = query.eq("status", status);
     }
 
-    // Period filter
-    if (period) {
+    // Date range filter (takes precedence over period shortcut)
+    if (dateFrom || dateTo) {
+      if (dateFrom) {
+        query = query.gte("date_created", dateFrom);
+      }
+      if (dateTo) {
+        query = query.lte("date_created", dateTo);
+      }
+    } else if (period) {
       const daysMap: Record<string, number> = {
         "7d": 7,
         "30d": 30,
@@ -96,8 +108,20 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Sort by date descending
-    query = query.order("date_created", { ascending: false, nullsFirst: false });
+    // Search filter (product title or buyer nickname)
+    if (search) {
+      query = query.or(
+        `item_title.ilike.%${search}%,buyer_nickname.ilike.%${search}%`
+      );
+    }
+
+    // Sort
+    const allowedSortFields = ["date_created", "total_amount", "net_profit", "quantity"];
+    const resolvedSortField = sortField && allowedSortFields.includes(sortField)
+      ? sortField
+      : "date_created";
+    const resolvedAscending = sortDirection === "asc";
+    query = query.order(resolvedSortField, { ascending: resolvedAscending, nullsFirst: false });
 
     // Pagination
     const offset = (page - 1) * pageSize;

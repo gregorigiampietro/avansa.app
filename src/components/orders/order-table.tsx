@@ -6,6 +6,16 @@ import { Package } from "lucide-react";
 
 interface OrderTableProps {
   orders: Order[];
+  sortField?: string | null;
+  sortDirection?: "asc" | "desc";
+  onSort?: (field: string) => void;
+  pagination?: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+  onPageChange?: (page: number) => void;
 }
 
 function PaymentStatusBadge({ status }: { status: string | null }) {
@@ -116,7 +126,19 @@ function ShippingBadge({ status }: { status: string | null }) {
   );
 }
 
-export function OrderTable({ orders }: OrderTableProps) {
+export function OrderTable({
+  orders,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  sortField,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  sortDirection,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onSort,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  pagination,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onPageChange,
+}: OrderTableProps) {
   if (orders.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-card p-12 text-center">
