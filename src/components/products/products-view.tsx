@@ -10,6 +10,7 @@ import type { CostData } from "./cost-editor";
 import type { Product, MlAccount } from "@/types/database";
 import { Button } from "@/components/ui/button";
 import { Loader2, RefreshCw } from "lucide-react";
+import { SyncStatusExpanded } from "@/components/sync/sync-status-indicator";
 
 interface ProductsViewProps {
   initialProducts: Product[];
@@ -167,6 +168,12 @@ export function ProductsView({ initialProducts, accounts }: ProductsViewProps) {
 
   return (
     <div className="flex flex-col gap-5 p-6">
+      {/* Sync status */}
+      <SyncStatusExpanded
+        syncType="products"
+        accountId={filters.accountId ?? undefined}
+      />
+
       {/* Sync buttons */}
       {activeAccounts.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">

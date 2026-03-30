@@ -16,6 +16,7 @@ import type { Order, MlAccount } from "@/types/database";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
+import { SyncStatusExpanded } from "@/components/sync/sync-status-indicator";
 import {
   Select,
   SelectContent,
@@ -318,6 +319,12 @@ export function OrdersView({ initialOrders, accounts }: OrdersViewProps) {
 
   return (
     <div className="flex flex-col gap-5 p-6">
+      {/* Sync status */}
+      <SyncStatusExpanded
+        syncType="orders"
+        accountId={filters.accountId ?? undefined}
+      />
+
       {/* Sync buttons */}
       {activeAccounts.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
