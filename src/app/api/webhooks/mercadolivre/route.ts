@@ -50,7 +50,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         topic: payload.topic,
         resource: payload.resource,
         ml_user_id: payload.user_id,
-        processed: false,
+        status: "pending",
         payload: JSON.parse(JSON.stringify(payload)),
       })
       .select("id")

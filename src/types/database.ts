@@ -241,7 +241,11 @@ export interface Database {
           resource: string
           ml_user_id: number
           received_at: string
-          processed: boolean
+          ml_notification_id: string | null
+          status: string
+          error_message: string | null
+          retry_count: number
+          processed_at: string | null
           payload: Json | null
         }
         Insert: {
@@ -250,7 +254,11 @@ export interface Database {
           resource: string
           ml_user_id: number
           received_at?: string
-          processed?: boolean
+          ml_notification_id?: string | null
+          status?: string
+          error_message?: string | null
+          retry_count?: number
+          processed_at?: string | null
           payload?: Json | null
         }
         Update: {
@@ -259,7 +267,11 @@ export interface Database {
           resource?: string
           ml_user_id?: number
           received_at?: string
-          processed?: boolean
+          ml_notification_id?: string | null
+          status?: string
+          error_message?: string | null
+          retry_count?: number
+          processed_at?: string | null
           payload?: Json | null
         }
         Relationships: []

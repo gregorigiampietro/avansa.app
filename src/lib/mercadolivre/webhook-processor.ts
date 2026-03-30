@@ -86,7 +86,7 @@ export async function processWebhookEvent(eventId: string): Promise<void> {
       const supabaseRetry = createAdminClient();
       await supabaseRetry
         .from("webhook_events")
-        .update({ processed: true })
+        .update({ status: "error", error_message: "Erro desconhecido durante processamento" })
         .eq("id", eventId);
     } catch {
       // Nothing more we can do
@@ -219,7 +219,7 @@ async function markProcessed(
 ): Promise<void> {
   const { error } = await supabase
     .from("webhook_events")
-    .update({ processed: true })
+    .update({ status: "completed", processed_at: new Date().toISOString() })
     .eq("id", eventId);
 
   if (error) {
