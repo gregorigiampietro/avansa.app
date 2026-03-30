@@ -8,9 +8,6 @@ import { ProductEditSheet } from "./product-edit-sheet";
 import { BulkActions } from "./bulk-actions";
 import type { CostData } from "./cost-editor";
 import type { Product, MlAccount } from "@/types/database";
-import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw } from "lucide-react";
-import { SyncStatusExpanded } from "@/components/sync/sync-status-indicator";
 
 interface ProductsViewProps {
   initialProducts: Product[];
@@ -25,7 +22,6 @@ export function ProductsView({ initialProducts, accounts }: ProductsViewProps) {
     status: null,
     sort: "title",
   });
-  const [syncingAccountId, setSyncingAccountId] = useState<string | null>(null);
 
   // Selection state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -112,34 +108,6 @@ export function ProductsView({ initialProducts, accounts }: ProductsViewProps) {
     []
   );
 
-  const handleSync = useCallback(
-    async (accountId: string) => {
-      setSyncingAccountId(accountId);
-      try {
-        const response = await fetch("/api/ml/sync", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ accountId }),
-        });
-
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error ?? "Erro ao sincronizar");
-        }
-
-        await refreshProducts();
-        toast.success("Produtos sincronizados com sucesso");
-      } catch (err) {
-        toast.error(
-          err instanceof Error ? err.message : "Erro ao sincronizar produtos"
-        );
-      } finally {
-        setSyncingAccountId(null);
-      }
-    },
-    [refreshProducts]
-  );
-
   const handleEditProduct = useCallback((product: Product) => {
     setEditingProduct(product);
     setEditSheetOpen(true);
@@ -164,39 +132,8 @@ export function ProductsView({ initialProducts, accounts }: ProductsViewProps) {
     setSelectedIds([]);
   }, []);
 
-  const activeAccounts = accounts.filter((a) => a.status === "active");
-
   return (
     <div className="flex flex-col gap-5 p-6">
-      {/* Sync status */}
-      <SyncStatusExpanded
-        syncType="products"
-        accountId={filters.accountId ?? undefined}
-      />
-
-      {/* Sync buttons */}
-      {activeAccounts.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          {activeAccounts.map((account) => (
-            <Button
-              key={account.id}
-              variant="outline"
-              size="sm"
-              disabled={syncingAccountId !== null}
-              onClick={() => handleSync(account.id)}
-            >
-              {syncingAccountId === account.id ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <RefreshCw />
-              )}
-              Sincronizar{" "}
-              {account.nickname ?? `Conta ${account.ml_user_id}`}
-            </Button>
-          ))}
-        </div>
-      )}
-
       {/* Filters */}
       <ProductFilters accounts={accounts} onFilterChange={setFilters} />
 

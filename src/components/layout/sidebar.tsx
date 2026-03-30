@@ -14,6 +14,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { SyncPopover } from "@/components/sync/sync-popover";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -68,8 +69,14 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* User / Logout */}
-      <div className="border-t border-border p-4">
+      {/* Sync + Logout */}
+      <div className="border-t border-border p-4 space-y-1">
+        <div className="flex items-center gap-3 px-3 py-2">
+          <SyncPopover />
+          <span className="text-sm font-medium text-sidebar-foreground">
+            Sincronização
+          </span>
+        </div>
         <button
           onClick={handleLogout}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"

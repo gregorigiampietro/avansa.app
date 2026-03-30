@@ -15,8 +15,7 @@ import {
 import type { Order, MlAccount } from "@/types/database";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
-import { SyncStatusExpanded } from "@/components/sync/sync-status-indicator";
+import { Loader2, Search, SlidersHorizontal } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -88,7 +87,6 @@ export function OrdersView({ initialOrders, accounts }: OrdersViewProps) {
     total: initialOrders.length,
     totalPages: 1,
   });
-  const [syncingAccountId, setSyncingAccountId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -281,73 +279,11 @@ export function OrdersView({ initialOrders, accounts }: OrdersViewProps) {
     [fetchOrders]
   );
 
-  const handleSync = useCallback(
-    async (accountId: string) => {
-      setSyncingAccountId(accountId);
-      try {
-        const response = await fetch("/api/ml/orders", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ accountId }),
-        });
-
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error ?? "Erro ao sincronizar pedidos");
-        }
-
-        await fetchOrders(filters);
-        toast.success("Pedidos sincronizados com sucesso");
-      } catch (err) {
-        toast.error(
-          err instanceof Error ? err.message : "Erro ao sincronizar pedidos"
-        );
-      } finally {
-        setSyncingAccountId(null);
-      }
-    },
-    [filters, fetchOrders]
-  );
-
-  const activeAccounts = useMemo(
-    () => accounts.filter((a) => a.status === "active"),
-    [accounts]
-  );
-
   const selectStyles =
     "h-8 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
   return (
     <div className="flex flex-col gap-5 p-6">
-      {/* Sync status */}
-      <SyncStatusExpanded
-        syncType="orders"
-        accountId={filters.accountId ?? undefined}
-      />
-
-      {/* Sync buttons */}
-      {activeAccounts.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          {activeAccounts.map((account) => (
-            <Button
-              key={account.id}
-              variant="outline"
-              size="sm"
-              disabled={syncingAccountId !== null}
-              onClick={() => handleSync(account.id)}
-            >
-              {syncingAccountId === account.id ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <RefreshCw />
-              )}
-              Sincronizar vendas{" "}
-              {account.nickname ?? `Conta ${account.ml_user_id}`}
-            </Button>
-          ))}
-        </div>
-      )}
-
       {/* Saved Filters */}
       <SavedFilters
         currentFilters={{
